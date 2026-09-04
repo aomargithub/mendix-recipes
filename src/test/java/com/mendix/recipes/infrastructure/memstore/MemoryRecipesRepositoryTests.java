@@ -91,7 +91,7 @@ class MemoryRecipesRepositoryTests {
             repository.findRecipesBy(Map.of("name", "Recipe"), PageRequest.of(0, 10));
             repository.getAllCategories();
             repository.getRecipeByName("Recipe 5");
-            repository.doesCategoryExist("italian");
+            repository.getRecipesByCategory("italian", Pageable.unpaged());
         }
         writer.join();
 

@@ -54,20 +54,11 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
     }
 
     @Override
-    public boolean doesCategoryExist(String category) {
-        lock.readLock().lock();
-        try {
-            return categories.containsKey(category.toLowerCase());
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    @Override
     public Page<RecipeSummaryDto> getRecipesByCategory(String category, Pageable pageable) {
         lock.readLock().lock();
         try {
-            return getPage(categories.get(category), pageable);
+            List<Recipe> categoryRecipes = categories.get(category);
+            return categoryRecipes == null ? null : getPage(categoryRecipes, pageable);
         } finally {
             lock.readLock().unlock();
         }

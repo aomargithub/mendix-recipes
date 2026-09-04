@@ -22,10 +22,11 @@ public class RecipeService {
         this.recipeQueryPort = recipeQueryPort;
     }
     public Page<RecipeSummaryDto> getRecipesByCategory(String category, Pageable pageable) {
-        if (!recipeQueryPort.doesCategoryExist(category)) {
+        Page<RecipeSummaryDto> recipes = recipeQueryPort.getRecipesByCategory(category, pageable);
+        if (recipes == null) {
             throw new ResourceNotFoundException("Category", category);
         }
-        return recipeQueryPort.getRecipesByCategory(category, pageable);
+        return recipes;
     }
 
     public Page<RecipeSummaryDto> findRecipesBy(Map<String, String> criteria, Pageable pageable) {
@@ -39,7 +40,7 @@ public class RecipeService {
     }
 
     public List<String> getAllCategories() {
-        return recipesRepository.getAllCategories();
+        return recipeQueryPort.getAllCategories();
     }
 
     public Recipe getRecipeByName(String name) {
@@ -54,6 +55,5 @@ public class RecipeService {
         if (!recipesRepository.addRecipe(recipe)) {
             throw new RecipeNameAlreadyExistsException(recipe.name());
         }
-
     }
 }
