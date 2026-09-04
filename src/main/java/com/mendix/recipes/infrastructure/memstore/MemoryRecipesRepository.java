@@ -9,6 +9,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.*;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiPredicate;
 
 
@@ -18,6 +20,7 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
             new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     private final List<Recipe> recipes = new ArrayList<>();
     private final Map<String, Recipe> recipeByName = new HashMap<>();
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private final Map<String, BiPredicate<Recipe, String>> filters = Map.of(
             "name", (recipe, value) ->
@@ -42,47 +45,77 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
 
     @Override
     public List<String> getAllCategories() {
-        return new ArrayList<>(categories.keySet());
+        lock.readLock().lock();
+        try {
+            return new ArrayList<>(categories.keySet());
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     @Override
     public boolean doesCategoryExist(String category) {
-        return categories.containsKey(category.toLowerCase());
+        lock.readLock().lock();
+        try {
+            return categories.containsKey(category.toLowerCase());
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     @Override
     public Page<RecipeSummaryDto> getRecipesByCategory(String category, Pageable pageable) {
-        return getPage(categories.get(category), pageable);
+        lock.readLock().lock();
+        try {
+            return getPage(categories.get(category), pageable);
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     @Override
     public Page<RecipeSummaryDto> findRecipesBy(Map<String, String> criteria, Pageable pageable) {
-        return getPage(filter(recipes, criteria), pageable);
+        lock.readLock().lock();
+        try {
+            return getPage(filter(recipes, criteria), pageable);
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     @Override
-    public synchronized boolean addRecipe(Recipe recipe) {
-        if (recipeByName.containsKey(recipe.name().toLowerCase())) {
-            return false;
+    public boolean addRecipe(Recipe recipe) {
+        lock.writeLock().lock();
+        try {
+            if (recipeByName.containsKey(recipe.name().toLowerCase())) {
+                return false;
+            }
+
+            recipeByName.put(recipe.name().toLowerCase(), recipe);
+            insertRecipeInto(recipe, recipes);
+
+            recipe.categories()
+                    .stream().map(String::toLowerCase)
+                    .forEach(
+                    category -> {
+                        List<Recipe> categoryRecipes = categories.computeIfAbsent(category, k -> new ArrayList<>());
+                        insertRecipeInto(recipe, categoryRecipes);
+                    }
+            );
+            return true;
+        } finally {
+            lock.writeLock().unlock();
         }
-
-        recipeByName.put(recipe.name().toLowerCase(), recipe);
-        insertRecipeInto(recipe, recipes);
-
-        recipe.categories()
-                .stream().map(String::toLowerCase)
-                .forEach(
-                category -> {
-                    List<Recipe> categoryRecipes = categories.computeIfAbsent(category, k -> new ArrayList<>());
-                    insertRecipeInto(recipe, categoryRecipes);
-                }
-        );
-        return true;
     }
 
     @Override
     public Recipe getRecipeByName(String name) {
-        return recipeByName.get(name.toLowerCase());
+        lock.readLock().lock();
+        try {
+            return recipeByName.get(name.toLowerCase());
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     private void insertRecipeInto(Recipe recipe, List<Recipe> recipes) {
