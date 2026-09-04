@@ -8,11 +8,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/v1")
 public class RecipeController {
+    private static final Set<String> PAGING_PARAMS = Set.of("page", "size", "sort");
+
     private final RecipeService recipeService;
 
     public RecipeController (RecipeService recipeService) {
@@ -26,7 +30,7 @@ public class RecipeController {
 
     @GetMapping("/recipes")
     public ResponseEntity<?> findRecipesBy(@RequestParam Map<String, String> searchParams, Pageable pageable) {
-        return ResponseEntity.ok(recipeService.findRecipesBy(searchParams, pageable));
+        return ResponseEntity.ok(recipeService.findRecipesBy(cleanSearchCriteria(searchParams), pageable));
     }
 
     @GetMapping("/recipes/{name}")
@@ -43,5 +47,11 @@ public class RecipeController {
     public ResponseEntity<?> addRecipe(@RequestBody Recipe recipe) {
         recipeService.addRecipe(recipe);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    private Map<String, String> cleanSearchCriteria(Map<String, String> params) {
+        Map<String, String> criteria = new HashMap<>(params);
+        criteria.keySet().removeAll(PAGING_PARAMS);
+        return criteria;
     }
 }

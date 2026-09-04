@@ -17,7 +17,7 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
     private final Map<String, List<Recipe>> categories =
             new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     private final List<Recipe> recipes = new ArrayList<>();
-    private final Map<String, Recipe> recipeByName = new HashMap<>(); //performant checking for duplication
+    private final Map<String, Recipe> recipeByName = new HashMap<>();
 
     private final Map<String, BiPredicate<Recipe, String>> filters = Map.of(
             "name", (recipe, value) ->
@@ -43,6 +43,11 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
     @Override
     public List<String> getAllCategories() {
         return new ArrayList<>(categories.keySet());
+    }
+
+    @Override
+    public boolean doesCategoryExist(String category) {
+        return categories.containsKey(category.toLowerCase());
     }
 
     @Override
@@ -77,7 +82,7 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
 
     @Override
     public Recipe getRecipeByName(String name) {
-        return recipeByName.get(name);
+        return recipeByName.get(name.toLowerCase());
     }
 
     private void insertRecipeInto(Recipe recipe, List<Recipe> recipes) {
@@ -120,7 +125,7 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
         int toIndex = Math.min(fromIndex + pageable.getPageSize(), recipes.size());
 
         if (fromIndex >= recipes.size()) {
-            return Page.empty();
+            return new PageImpl<>(List.of(), pageable, recipes.size());
         }
 
         return new PageImpl<>(toDto(recipes.subList(fromIndex, toIndex)), pageable, recipes.size());

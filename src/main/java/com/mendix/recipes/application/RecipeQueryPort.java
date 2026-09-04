@@ -12,4 +12,5 @@ public interface RecipeQueryPort {
     Set<String> SUPPORTED_FILTERS = Set.of("name", "category", "author");
     Page<RecipeSummaryDto> getRecipesByCategory(String category, Pageable pageable);
     Page<RecipeSummaryDto> findRecipesBy(Map<String, String> criteria, Pageable pageable);
+    boolean doesCategoryExist(String category);
 }

@@ -22,11 +22,10 @@ public class RecipeService {
         this.recipeQueryPort = recipeQueryPort;
     }
     public Page<RecipeSummaryDto> getRecipesByCategory(String category, Pageable pageable) {
-        Page<RecipeSummaryDto> result = recipeQueryPort.getRecipesByCategory(category, pageable);
-        if (result.getTotalElements() == 0) {
+        if (!recipeQueryPort.doesCategoryExist(category)) {
             throw new ResourceNotFoundException("Category", category);
         }
-        return result;
+        return recipeQueryPort.getRecipesByCategory(category, pageable);
     }
 
     public Page<RecipeSummaryDto> findRecipesBy(Map<String, String> criteria, Pageable pageable) {
