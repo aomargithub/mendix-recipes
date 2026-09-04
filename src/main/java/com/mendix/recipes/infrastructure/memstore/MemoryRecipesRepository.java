@@ -148,11 +148,14 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
     }
 
     private Page<RecipeSummaryDto> getPage(List<Recipe> recipes, Pageable pageable) {
-        if (recipes ==  null || recipes.isEmpty()) {
+        if (recipes == null || recipes.isEmpty()) {
             return Page.empty();
         }
         if (pageable == null) {
-            return  new PageImpl<>(toDto(recipes));
+            pageable = Pageable.unpaged();
+        }
+        if (pageable.isUnpaged()) {
+            return new PageImpl<>(toDto(recipes), pageable, recipes.size());
         }
         int fromIndex = pageable.getPageNumber() * pageable.getPageSize();
         int toIndex = Math.min(fromIndex + pageable.getPageSize(), recipes.size());

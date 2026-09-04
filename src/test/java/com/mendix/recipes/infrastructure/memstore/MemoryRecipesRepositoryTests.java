@@ -1,11 +1,14 @@
 package com.mendix.recipes.infrastructure.memstore;
 
+import com.mendix.recipes.application.dto.RecipeSummaryDto;
 import com.mendix.recipes.domain.Ingredient;
 import com.mendix.recipes.domain.MeasurementUnit;
 import com.mendix.recipes.domain.Recipe;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -53,6 +56,20 @@ class MemoryRecipesRepositoryTests {
         for (int i = 0; i < 32; i++) {
             assertNotNull(repository.getRecipeByName("recipe " + i));
         }
+    }
+
+    @Test
+    void unpagedRequestReturnsAllRecipes() {
+        MemoryRecipesRepository repository = new MemoryRecipesRepository();
+        for (int i = 0; i < 25; i++) {
+            repository.addRecipe(recipe("Recipe " + i));
+        }
+
+        Page<RecipeSummaryDto> page = repository.findRecipesBy(Map.of(), Pageable.unpaged());
+
+        assertEquals(25, page.getContent().size());
+        assertEquals(25, page.getTotalElements());
+        assertEquals(1, page.getTotalPages());
     }
 
     @Test

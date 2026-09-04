@@ -16,6 +16,7 @@ import java.util.Set;
 @RequestMapping("/v1")
 public class RecipeController {
     private static final Set<String> PAGING_PARAMS = Set.of("page", "size", "sort");
+    private static final Set<String> PAGE_SIZE_PARAMS = Set.of("page", "size");
 
     private final RecipeService recipeService;
 
@@ -30,7 +31,8 @@ public class RecipeController {
 
     @GetMapping("/recipes")
     public ResponseEntity<?> findRecipesBy(@RequestParam Map<String, String> searchParams, Pageable pageable) {
-        return ResponseEntity.ok(recipeService.findRecipesBy(cleanSearchCriteria(searchParams), pageable));
+        Pageable effectivePageable = unpagedUnlessPagingRequested(searchParams, pageable);
+        return ResponseEntity.ok(recipeService.findRecipesBy(cleanSearchCriteria(searchParams), effectivePageable));
     }
 
     @GetMapping("/recipes/{name}")
@@ -39,8 +41,10 @@ public class RecipeController {
     }
 
     @GetMapping("/categories/{category}/recipes")
-    public ResponseEntity<?> getRecipesByCategory(@PathVariable String category, Pageable pageable) {
-        return ResponseEntity.ok(recipeService.getRecipesByCategory(category, pageable));
+    public ResponseEntity<?> getRecipesByCategory(@PathVariable String category,
+            @RequestParam Map<String, String> params, Pageable pageable) {
+        Pageable effectivePageable = unpagedUnlessPagingRequested(params, pageable);
+        return ResponseEntity.ok(recipeService.getRecipesByCategory(category, effectivePageable));
     }
 
     @PostMapping("/recipes")
@@ -53,5 +57,10 @@ public class RecipeController {
         Map<String, String> criteria = new HashMap<>(params);
         criteria.keySet().removeAll(PAGING_PARAMS);
         return criteria;
+    }
+
+    private static Pageable unpagedUnlessPagingRequested(Map<String, String> params, Pageable pageable) {
+        boolean pagingRequested = params.keySet().stream().anyMatch(PAGE_SIZE_PARAMS::contains);
+        return pagingRequested ? pageable : Pageable.unpaged(pageable.getSort());
     }
 }

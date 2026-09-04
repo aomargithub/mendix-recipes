@@ -1,3 +1,7 @@
 spring:
   application:
     name: recipes
+  data:
+    web:
+      pageable:
+        serialization-mode: via_dto
