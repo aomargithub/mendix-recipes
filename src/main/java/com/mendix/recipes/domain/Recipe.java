@@ -20,9 +20,8 @@ public record Recipe(
         Set<String> categories
 ) {
     public Recipe {
-        if (id == null) {
+        if (id == null)
             throw new IllegalArgumentException("Recipe id must not be null");
-        }
         if (name == null || name.isBlank())
             throw new IllegalArgumentException("Recipe name must not be blank");
         if (description == null || description.isBlank())
@@ -43,9 +42,14 @@ public record Recipe(
             throw new IllegalArgumentException("Recipe must have at least one category");
 
         name = name.trim();
+        postedAt = new Date(postedAt.getTime()); //to escape the mutability of Date class
         steps = List.copyOf(steps);          // immutable + null-hostile
         ingredients = Set.copyOf(ingredients);
         categories = categories.stream().map(String::toLowerCase).collect(Collectors.toUnmodifiableSet());
+    }
+
+    @Override public Date postedAt() { //to escape the mutability of Date class
+        return new Date(postedAt.getTime());
     }
 
     public static Recipe of (
