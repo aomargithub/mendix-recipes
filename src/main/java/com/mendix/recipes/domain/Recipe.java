@@ -45,7 +45,7 @@ public record Recipe(
         name = name.trim();
         steps = List.copyOf(steps);          // immutable + null-hostile
         ingredients = Set.copyOf(ingredients);
-        categories = categories.stream().map(String::toLowerCase).collect(Collectors.toSet());
+        categories = categories.stream().map(String::toLowerCase).collect(Collectors.toUnmodifiableSet());
     }
 
     public static Recipe of (
