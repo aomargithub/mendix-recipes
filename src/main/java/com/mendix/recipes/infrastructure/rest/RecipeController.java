@@ -3,13 +3,18 @@ package com.mendix.recipes.infrastructure.rest;
 
 import com.mendix.recipes.application.RecipeService;
 import com.mendix.recipes.application.dto.CreateRecipeRequestDto;
+import com.mendix.recipes.application.dto.RecipeSummaryDto;
+import com.mendix.recipes.domain.Recipe;
 import com.mendix.recipes.domain.SortNotSupportedException;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -26,24 +31,24 @@ public class RecipeController {
     }
 
     @GetMapping("/categories")
-    public ResponseEntity<?> getAllCategories() {
+    public ResponseEntity<List<String>> getAllCategories() {
         return ResponseEntity.ok(recipeService.getAllCategories());
     }
 
     @GetMapping("/recipes")
-    public ResponseEntity<?> findRecipesBy(@RequestParam Map<String, String> searchParams, Pageable pageable) {
+    public ResponseEntity<Page<RecipeSummaryDto>> findRecipesBy(@RequestParam Map<String, String> searchParams, Pageable pageable) {
         rejectSorting(searchParams);
         Pageable effectivePageable = unpagedUnlessPagingRequested(searchParams, pageable);
         return ResponseEntity.ok(recipeService.findRecipesBy(cleanSearchCriteria(searchParams), effectivePageable));
     }
 
     @GetMapping("/recipes/{id}")
-    public ResponseEntity<?> getRecipeById(@PathVariable UUID id) {
+    public ResponseEntity<Recipe> getRecipeById(@PathVariable UUID id) {
         return ResponseEntity.ok(recipeService.getRecipeById(id));
     }
 
     @GetMapping("/categories/{category}/recipes")
-    public ResponseEntity<?> getRecipesByCategory(@PathVariable String category,
+    public ResponseEntity<Page<RecipeSummaryDto>> getRecipesByCategory(@PathVariable String category,
             @RequestParam Map<String, String> params, Pageable pageable) {
         rejectSorting(params);
         Pageable effectivePageable = unpagedUnlessPagingRequested(params, pageable);
@@ -51,9 +56,9 @@ public class RecipeController {
     }
 
     @PostMapping("/recipes")
-    public ResponseEntity<?> addRecipe(@RequestBody CreateRecipeRequestDto request) {
+    public ResponseEntity<Void> addRecipe(@RequestBody CreateRecipeRequestDto request, HttpServletRequest httpRequest) {
         UUID id = recipeService.addRecipe(request);
-        return ResponseEntity.created(URI.create("/v1/recipes/" + id)).build();
+        return ResponseEntity.created(URI.create(httpRequest.getContextPath() + "/v1/recipes/" + id)).build();
     }
 
     private static void rejectSorting(Map<String, String> params) {

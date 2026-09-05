@@ -1,6 +1,6 @@
 server:
   servlet:
-    context-path: /recipes
+    context-path: /mendix-recipes
 spring:
   application:
     name: recipes

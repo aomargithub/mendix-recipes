@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.util.HashMap;
 import java.util.List;
@@ -111,10 +112,22 @@ class RecipeControllerUnitTests {
         UUID id = UUID.randomUUID();
         when(recipeService.addRecipe(any(CreateRecipeRequestDto.class))).thenReturn(id);
 
-        ResponseEntity<?> response = controller.addRecipe(createRequest("Pasta"));
+        ResponseEntity<?> response = controller.addRecipe(createRequest("Pasta"), new MockHttpServletRequest());
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertEquals("/v1/recipes/" + id, response.getHeaders().getLocation().toString());
+    }
+
+    @Test
+    void addRecipeLocationIncludesContextPath() {
+        UUID id = UUID.randomUUID();
+        when(recipeService.addRecipe(any(CreateRecipeRequestDto.class))).thenReturn(id);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setContextPath("/recipes");
+
+        ResponseEntity<?> response = controller.addRecipe(createRequest("Pasta"), request);
+
+        assertEquals("/recipes/v1/recipes/" + id, response.getHeaders().getLocation().toString());
     }
 
     @Test
