@@ -1,6 +1,8 @@
 package com.mendix.recipes.domain;
 
+import java.util.UUID;
+
 public interface RecipesRepository {
     boolean addRecipe(Recipe recipe);
-    Recipe getRecipeByName(String name);
+    Recipe getRecipeById(UUID id);
 }

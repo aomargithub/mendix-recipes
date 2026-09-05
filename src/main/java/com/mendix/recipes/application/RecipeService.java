@@ -1,5 +1,6 @@
 package com.mendix.recipes.application;
 
+import com.mendix.recipes.application.dto.CreateRecipeRequestDto;
 import com.mendix.recipes.application.dto.RecipeSummaryDto;
 import com.mendix.recipes.domain.*;
 import org.springframework.data.domain.Page;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -43,17 +45,19 @@ public class RecipeService {
         return recipeQueryPort.getAllCategories();
     }
 
-    public Recipe getRecipeByName(String name) {
-        Recipe recipe = recipesRepository.getRecipeByName(name);
+    public Recipe getRecipeById(UUID id) {
+        Recipe recipe = recipesRepository.getRecipeById(id);
         if (recipe == null) {
-            throw new ResourceNotFoundException("Recipe", name);
+            throw new ResourceNotFoundException("Recipe", id);
         }
         return recipe;
     }
 
-    public void addRecipe(Recipe recipe) {
+    public UUID addRecipe(CreateRecipeRequestDto request) {
+        Recipe recipe = request.toDomain();
         if (!recipesRepository.addRecipe(recipe)) {
             throw new RecipeNameAlreadyExistsException(recipe.name());
         }
+        return recipe.id();
     }
 }

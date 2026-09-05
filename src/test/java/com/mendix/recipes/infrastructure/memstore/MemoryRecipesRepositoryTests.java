@@ -10,11 +10,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.time.Duration;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -49,12 +46,16 @@ class MemoryRecipesRepositoryTests {
     @Test
     void concurrentDistinctAddsAllSucceed() throws Exception {
         MemoryRecipesRepository repository = new MemoryRecipesRepository();
+        List<Recipe> recipes = new ArrayList<>();
+        for (int i = 0; i < 32; i++) {
+            recipes.add(recipe("Recipe " + i));
+        }
 
-        long winners = runConcurrently(32, i -> () -> repository.addRecipe(recipe("Recipe " + i)));
+        long winners = runConcurrently(32, i -> () -> repository.addRecipe(recipes.get(i)));
 
         assertEquals(32, winners);
-        for (int i = 0; i < 32; i++) {
-            assertNotNull(repository.getRecipeByName("recipe " + i));
+        for (Recipe added : recipes) {
+            assertNotNull(repository.getRecipeById(added.id()));
         }
     }
 
@@ -76,8 +77,13 @@ class MemoryRecipesRepositoryTests {
     @Timeout(60)
     void readsDuringWritesNeverThrow() throws Exception {
         MemoryRecipesRepository repository = new MemoryRecipesRepository();
+        UUID fifthRecipeId = null;
         for (int i = 0; i < 50; i++) {
-            repository.addRecipe(recipe("Recipe " + i));
+            Recipe seeded = recipe("Recipe " + i);
+            repository.addRecipe(seeded);
+            if (i == 5) {
+                fifthRecipeId = seeded.id();
+            }
         }
 
         Thread writer = new Thread(() -> {
@@ -90,7 +96,7 @@ class MemoryRecipesRepositoryTests {
             repository.getRecipesByCategory("italian", PageRequest.of(0, 10));
             repository.findRecipesBy(Map.of("name", "Recipe"), PageRequest.of(0, 10));
             repository.getAllCategories();
-            repository.getRecipeByName("Recipe 5");
+            repository.getRecipeById(fifthRecipeId);
             repository.getRecipesByCategory("italian", Pageable.unpaged());
         }
         writer.join();
@@ -119,6 +125,7 @@ class MemoryRecipesRepositoryTests {
 
     private Recipe recipe(String name) {
         return new Recipe(
+                UUID.randomUUID(),
                 name,
                 "A tasty dish with a description long enough to matter",
                 List.of("Step one", "Step two"),
@@ -126,6 +133,7 @@ class MemoryRecipesRepositoryTests {
                 "Chef",
                 new Date(),
                 "website",
+                Duration.ofMinutes(5),
                 Set.of("italian"));
     }
 }

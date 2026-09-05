@@ -6,7 +6,7 @@ public enum MeasurementUnit {
     // weight
     GRAM,
     // count / unmeasured
-    PIECE, UNIT,
+    PIECE,
     // packaged
     CAN, PACKAGE, JAR;
 }

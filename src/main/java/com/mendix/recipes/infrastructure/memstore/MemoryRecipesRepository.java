@@ -19,7 +19,8 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
     private final Map<String, List<Recipe>> categories =
             new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     private final List<Recipe> recipes = new ArrayList<>();
-    private final Map<String, Recipe> recipeByName = new HashMap<>();
+    private final Map<UUID, Recipe> recipeById = new HashMap<>();
+    private final Set<String> recipeNames = new HashSet<>();
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private final Map<String, BiPredicate<Recipe, String>> filters = Map.of(
@@ -78,11 +79,11 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
     public boolean addRecipe(Recipe recipe) {
         lock.writeLock().lock();
         try {
-            if (recipeByName.containsKey(recipe.name().toLowerCase())) {
+            if (recipeNames.contains(recipe.name().toLowerCase())) {
                 return false;
             }
-
-            recipeByName.put(recipe.name().toLowerCase(), recipe);
+            recipeById.put(recipe.id(), recipe);
+            recipeNames.add(recipe.name().toLowerCase());
             insertRecipeInto(recipe, recipes);
 
             recipe.categories()
@@ -100,10 +101,10 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
     }
 
     @Override
-    public Recipe getRecipeByName(String name) {
+    public Recipe getRecipeById(UUID id) {
         lock.readLock().lock();
         try {
-            return recipeByName.get(name.toLowerCase());
+            return recipeById.get(id);
         } finally {
             lock.readLock().unlock();
         }

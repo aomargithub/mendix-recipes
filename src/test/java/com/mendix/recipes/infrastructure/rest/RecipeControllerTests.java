@@ -1,5 +1,6 @@
 package com.mendix.recipes.infrastructure.rest;
 
+import com.mendix.recipes.application.RecipeQueryPort;
 import com.mendix.recipes.domain.Ingredient;
 import com.mendix.recipes.domain.MeasurementUnit;
 import com.mendix.recipes.domain.Recipe;
@@ -9,10 +10,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Duration;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -31,9 +35,12 @@ class RecipeControllerTests {
     @Autowired
     private RecipesRepository recipesRepository;
 
+    @Autowired
+    private RecipeQueryPort recipeQueryPort;
+
     @BeforeEach
     void seedRecipes() {
-        if (recipesRepository.getRecipeByName("Recipe 00") == null) {
+        if (recipeQueryPort.findRecipesBy(Map.of(), PageRequest.of(0, 1)).getTotalElements() == 0) {
             for (int i = 0; i < RECIPE_COUNT; i++) {
                 recipesRepository.addRecipe(recipe("Recipe %02d".formatted(i)));
             }
@@ -108,7 +115,7 @@ class RecipeControllerTests {
     }
 
     private Recipe recipe(String name) {
-        return new Recipe(
+        return Recipe.of(
                 name,
                 "A tasty dish with a description long enough to matter",
                 List.of("Step one", "Step two"),
@@ -116,6 +123,7 @@ class RecipeControllerTests {
                 "Chef",
                 new Date(),
                 "website",
+                Duration.ofMinutes(5),
                 Set.of("italian"));
     }
 }
