@@ -14,11 +14,11 @@ public record CreateRecipeRequestDto (
         String name,
         String description,
         List<String> steps,
-        Set<Ingredient> ingredients,
+        Set<IngredientDto> ingredients,
         String author,
         Date postedAt,
         String postedTo,
-        int preparationTimeInMinutes,
+        long preparationTimeInMinutes,
         Set<String> categories
 ) {
     public CreateRecipeRequestDto {
@@ -42,33 +42,10 @@ public record CreateRecipeRequestDto (
             throw new IllegalArgumentException("Recipe must have at least one category");
     }
 
-    public record Ingredient(
-            String name,
-            double quantity,
-            String unit
-    ) {
-        public Ingredient {
-            if (name == null || name.isBlank())
-                throw new IllegalArgumentException("Ingredient name must not be blank");
-            if (quantity <= 0)
-                throw new IllegalArgumentException("Ingredient quantity must be greater than zero");
-            if (unit == null || unit.isBlank())
-                throw new IllegalArgumentException("Ingredient unit must not be blank");
-        }
-        private com.mendix.recipes.domain.Ingredient toDomain() {
-            try {
-                MeasurementUnit measurementUnit = MeasurementUnit.valueOf(unit);
-                return new com.mendix.recipes.domain.Ingredient(name, quantity, measurementUnit);
-            } catch (IllegalArgumentException e) {
-                throw new UnknownMeasurementUnitException(unit, MeasurementUnit.values());
-            }
-        }
-    }
-
     public Recipe toDomain() {
-        Set<com.mendix.recipes.domain.Ingredient> ings = ingredients.stream()
-                .map(Ingredient::toDomain).collect(Collectors.toSet());
-        return Recipe.of(name, description, steps, ings, author, postedAt, postedTo,
+        Set<com.mendix.recipes.domain.Ingredient> ingredientDtos = ingredients.stream()
+                .map(IngredientDto::toDomain).collect(Collectors.toSet());
+        return Recipe.of(name, description, steps, ingredientDtos, author, postedAt, postedTo,
                 Duration.ofMinutes(preparationTimeInMinutes), categories);
     }
 }

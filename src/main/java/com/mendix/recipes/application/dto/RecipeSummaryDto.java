@@ -9,9 +9,9 @@ public record RecipeSummaryDto(
         UUID id,
         String name,
         String descriptionPrefix,
-        Duration preparationTime
+        long preparationTimeInMinutes
 ) {
     public static RecipeSummaryDto from(Recipe recipe) {
-        return new RecipeSummaryDto(recipe.id(), recipe.name(), recipe.description() , recipe.preparationTime());
+        return new RecipeSummaryDto(recipe.id(), recipe.name(), recipe.description() , recipe.preparationTime().toMinutes());
     }
 }

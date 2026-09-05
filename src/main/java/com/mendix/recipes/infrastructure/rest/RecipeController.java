@@ -3,6 +3,7 @@ package com.mendix.recipes.infrastructure.rest;
 
 import com.mendix.recipes.application.RecipeService;
 import com.mendix.recipes.application.dto.CreateRecipeRequestDto;
+import com.mendix.recipes.application.dto.GetRecipeResponseDto;
 import com.mendix.recipes.application.dto.RecipeSummaryDto;
 import com.mendix.recipes.domain.Recipe;
 import com.mendix.recipes.domain.SortNotSupportedException;
@@ -43,7 +44,7 @@ public class RecipeController {
     }
 
     @GetMapping("/recipes/{id}")
-    public ResponseEntity<Recipe> getRecipeById(@PathVariable UUID id) {
+    public ResponseEntity<GetRecipeResponseDto> getRecipeById(@PathVariable UUID id) {
         return ResponseEntity.ok(recipeService.getRecipeById(id));
     }
 

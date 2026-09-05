@@ -1,5 +1,6 @@
 package com.mendix.recipes.application;
 
+import com.mendix.recipes.application.dto.GetRecipeResponseDto;
 import com.mendix.recipes.application.dto.RecipeSummaryDto;
 import com.mendix.recipes.domain.Recipe;
 import com.mendix.recipes.domain.RecipeNameAlreadyExistsException;
@@ -94,13 +95,15 @@ class RecipeServiceTests {
     }
 
     @Test
-    void getRecipeByIdReturnsRecipe() {
+    void getRecipeByIdMapsRecipeToResponseDto() {
         Recipe recipe = recipe("Pasta");
         when(recipesRepository.getRecipeById(recipe.id())).thenReturn(recipe);
 
-        Recipe result = recipeService.getRecipeById(recipe.id());
+        GetRecipeResponseDto result = recipeService.getRecipeById(recipe.id());
 
-        assertSame(recipe, result);
+        assertEquals(recipe.id(), result.id());
+        assertEquals("Pasta", result.name());
+        assertEquals(5, result.preparationTimeInMinutes());
     }
 
     @Test

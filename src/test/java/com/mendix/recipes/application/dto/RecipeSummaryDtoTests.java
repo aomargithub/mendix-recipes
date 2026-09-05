@@ -35,6 +35,6 @@ class RecipeSummaryDtoTests {
 
         assertEquals(recipe.id(), dto.id());
         assertEquals("Pasta", dto.name());
-        assertEquals(PREPARATION_TIME, dto.preparationTime());
+        assertEquals(5, dto.preparationTimeInMinutes());
     }
 }

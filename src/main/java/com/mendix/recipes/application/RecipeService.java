@@ -1,6 +1,7 @@
 package com.mendix.recipes.application;
 
 import com.mendix.recipes.application.dto.CreateRecipeRequestDto;
+import com.mendix.recipes.application.dto.GetRecipeResponseDto;
 import com.mendix.recipes.application.dto.RecipeSummaryDto;
 import com.mendix.recipes.domain.*;
 import org.springframework.data.domain.Page;
@@ -45,12 +46,12 @@ public class RecipeService {
         return recipeQueryPort.getAllCategories();
     }
 
-    public Recipe getRecipeById(UUID id) {
+    public GetRecipeResponseDto getRecipeById(UUID id) {
         Recipe recipe = recipesRepository.getRecipeById(id);
         if (recipe == null) {
             throw new ResourceNotFoundException("Recipe", id);
         }
-        return recipe;
+        return GetRecipeResponseDto.from(recipe);
     }
 
     public UUID addRecipe(CreateRecipeRequestDto request) {

@@ -24,7 +24,7 @@ class CreateRecipeRequestDtoTests {
         Date postedAt = new Date();
         CreateRecipeRequestDto request = new CreateRecipeRequestDto(
                 "Pasta", DESCRIPTION, List.of("Step one", "Step two"),
-                Set.of(new CreateRecipeRequestDto.Ingredient("spaghetti", 200, "GRAM")),
+                Set.of(new IngredientDto("spaghetti", 200, "GRAM")),
                 AUTHOR, postedAt, POSTED_TO, 15, Set.of("Italian"));
 
         Recipe recipe = request.toDomain();
@@ -44,14 +44,14 @@ class CreateRecipeRequestDtoTests {
     void unknownUnitIsRejectedWithSupportedUnits() {
         CreateRecipeRequestDto request = new CreateRecipeRequestDto(
                 "Pasta", DESCRIPTION, List.of("Step one"),
-                Set.of(new CreateRecipeRequestDto.Ingredient("spaghetti", 200, "GALLON")),
+                Set.of(new IngredientDto("spaghetti", 200, "GALLON")),
                 AUTHOR, new Date(), POSTED_TO, 15, Set.of("italian"));
 
         UnknownMeasurementUnitException ex = assertThrows(UnknownMeasurementUnitException.class,
                 request::toDomain);
 
         assertEquals("Unknown Unit: GALLON, currently supported units: "
-                + "[LITER, CUP, TABLESPOON, TEASPOON, GRAM, PIECE, CAN, PACKAGE, JAR]",
+                + "[LITER, CUP, TABLESPOON, TEASPOON, GRAM, POUND, PIECE, CAN, PACKAGE, JAR]",
                 ex.getMessage());
     }
 
@@ -59,7 +59,7 @@ class CreateRecipeRequestDtoTests {
     void blankNameIsRejected() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> new CreateRecipeRequestDto("  ", DESCRIPTION, List.of("Step one"),
-                        Set.of(new CreateRecipeRequestDto.Ingredient("spaghetti", 200, "GRAM")),
+                        Set.of(new IngredientDto("spaghetti", 200, "GRAM")),
                         AUTHOR, new Date(), POSTED_TO, 15, Set.of("italian")));
         assertEquals("Recipe name must not be blank", ex.getMessage());
     }
@@ -68,7 +68,7 @@ class CreateRecipeRequestDtoTests {
     void missingStepsAreRejected() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> new CreateRecipeRequestDto("Pasta", DESCRIPTION, List.of(),
-                        Set.of(new CreateRecipeRequestDto.Ingredient("spaghetti", 200, "GRAM")),
+                        Set.of(new IngredientDto("spaghetti", 200, "GRAM")),
                         AUTHOR, new Date(), POSTED_TO, 15, Set.of("italian")));
         assertEquals("Recipe must have at least one non-blank step", ex.getMessage());
     }
@@ -77,7 +77,7 @@ class CreateRecipeRequestDtoTests {
     void zeroPreparationTimeIsRejected() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> new CreateRecipeRequestDto("Pasta", DESCRIPTION, List.of("Step one"),
-                        Set.of(new CreateRecipeRequestDto.Ingredient("spaghetti", 200, "GRAM")),
+                        Set.of(new IngredientDto("spaghetti", 200, "GRAM")),
                         AUTHOR, new Date(), POSTED_TO, 0, Set.of("italian")));
         assertEquals("Recipe preparationTime must be greater than zero", ex.getMessage());
     }
@@ -86,7 +86,7 @@ class CreateRecipeRequestDtoTests {
     void nullPostedAtIsRejected() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> new CreateRecipeRequestDto("Pasta", DESCRIPTION, List.of("Step one"),
-                        Set.of(new CreateRecipeRequestDto.Ingredient("spaghetti", 200, "GRAM")),
+                        Set.of(new IngredientDto("spaghetti", 200, "GRAM")),
                         AUTHOR, null, POSTED_TO, 15, Set.of("italian")));
         assertEquals("Recipe postedAt must not be null", ex.getMessage());
     }

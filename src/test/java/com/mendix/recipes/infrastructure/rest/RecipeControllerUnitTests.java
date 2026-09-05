@@ -2,6 +2,7 @@ package com.mendix.recipes.infrastructure.rest;
 
 import com.mendix.recipes.application.RecipeService;
 import com.mendix.recipes.application.dto.CreateRecipeRequestDto;
+import com.mendix.recipes.application.dto.GetRecipeResponseDto;
 import com.mendix.recipes.application.dto.RecipeSummaryDto;
 import com.mendix.recipes.domain.Recipe;
 import com.mendix.recipes.domain.SortNotSupportedException;
@@ -98,13 +99,13 @@ class RecipeControllerUnitTests {
 
     @Test
     void getRecipeByIdReturnsOkWithRecipe() {
-        Recipe recipe = recipe("Pasta");
-        when(recipeService.getRecipeById(recipe.id())).thenReturn(recipe);
+        GetRecipeResponseDto dto = GetRecipeResponseDto.from(recipe("Pasta"));
+        when(recipeService.getRecipeById(dto.id())).thenReturn(dto);
 
-        ResponseEntity<?> response = controller.getRecipeById(recipe.id());
+        ResponseEntity<?> response = controller.getRecipeById(dto.id());
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertSame(recipe, response.getBody());
+        assertSame(dto, response.getBody());
     }
 
     @Test

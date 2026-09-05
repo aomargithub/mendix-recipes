@@ -1,6 +1,7 @@
 package com.mendix.recipes;
 
 import com.mendix.recipes.application.dto.CreateRecipeRequestDto;
+import com.mendix.recipes.application.dto.IngredientDto;
 import com.mendix.recipes.domain.Ingredient;
 import com.mendix.recipes.domain.MeasurementUnit;
 import com.mendix.recipes.domain.Recipe;
@@ -43,7 +44,7 @@ public final class TestRecipes {
                 name,
                 DESCRIPTION,
                 List.of("Step one", "Step two"),
-                Set.of(new CreateRecipeRequestDto.Ingredient("spaghetti", 200, "GRAM")),
+                Set.of(new IngredientDto("spaghetti", 200, "GRAM")),
                 AUTHOR,
                 new Date(),
                 POSTED_TO,
