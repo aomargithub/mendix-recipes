@@ -2,6 +2,7 @@ package com.mendix.recipes.infrastructure.rest;
 
 import com.mendix.recipes.domain.RecipeNameAlreadyExistsException;
 import com.mendix.recipes.domain.ResourceNotFoundException;
+import com.mendix.recipes.domain.SortNotSupportedException;
 import com.mendix.recipes.domain.UnknownFilterException;
 import com.mendix.recipes.domain.UnknownMeasurementUnitException;
 import org.slf4j.Logger;
@@ -37,6 +38,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(UnknownFilterException.class)
     public ProblemDetail handleUnknownFilter(UnknownFilterException ex) {
         return problem(HttpStatus.BAD_REQUEST, "Unknown filter", ex.getMessage());
+    }
+
+    @ExceptionHandler(SortNotSupportedException.class)
+    public ProblemDetail handleSortNotSupported(SortNotSupportedException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Sorting not supported", ex.getMessage());
     }
 
 

@@ -28,8 +28,8 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
                     recipe.name().toLowerCase().contains(value.toLowerCase()),
 
             "category", (recipe, value) ->
-                    recipe.categories().stream().map(String::toLowerCase)
-                            .anyMatch(categoryName -> categoryName.toLowerCase().contains(value.toLowerCase())),
+                    recipe.categories().stream()
+                            .anyMatch(categoryName -> categoryName.contains(value.toLowerCase())),
 
             "author", (recipe, value) ->
                     recipe.author().toLowerCase().contains(value.toLowerCase()));
@@ -87,7 +87,6 @@ public class MemoryRecipesRepository implements RecipesRepository, RecipeQueryPo
             insertRecipeInto(recipe, recipes);
 
             recipe.categories()
-                    .stream().map(String::toLowerCase)
                     .forEach(
                     category -> {
                         List<Recipe> categoryRecipes = categories.computeIfAbsent(category, k -> new ArrayList<>());

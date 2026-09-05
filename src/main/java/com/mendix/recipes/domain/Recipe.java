@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public record Recipe(
         UUID id,
@@ -44,7 +45,7 @@ public record Recipe(
         name = name.trim();
         steps = List.copyOf(steps);          // immutable + null-hostile
         ingredients = Set.copyOf(ingredients);
-        categories = Set.copyOf(categories);
+        categories = categories.stream().map(String::toLowerCase).collect(Collectors.toSet());
     }
 
     public static Recipe of (

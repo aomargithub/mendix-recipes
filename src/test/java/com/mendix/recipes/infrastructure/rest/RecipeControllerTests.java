@@ -100,10 +100,36 @@ class RecipeControllerTests {
     }
 
     @Test
-    void sortWithoutPagingParamsDoesNotTruncateResults() throws Exception {
+    void sortParamIsRejected() throws Exception {
         mockMvc.perform(get("/v1/recipes").param("sort", "name"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content.length()").value(RECIPE_COUNT));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Sorting not supported"))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.detail").value("Sorting is not supported: the 'sort' parameter is not accepted"));
+    }
+
+    @Test
+    void sortParamIsRejectedOnCategoryEndpoint() throws Exception {
+        mockMvc.perform(get("/v1/categories/italian/recipes").param("sort", "name"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Sorting not supported"));
+    }
+
+    @Test
+    void sortParamIsRejectedEvenWithPaging() throws Exception {
+        mockMvc.perform(get("/v1/recipes")
+                        .param("sort", "name")
+                        .param("page", "0")
+                        .param("size", "5"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Sorting not supported"));
+    }
+
+    @Test
+    void sortParamIsRejectedCaseInsensitive() throws Exception {
+        mockMvc.perform(get("/v1/recipes").param("SORT", "name"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Sorting not supported"));
     }
 
     @Test
