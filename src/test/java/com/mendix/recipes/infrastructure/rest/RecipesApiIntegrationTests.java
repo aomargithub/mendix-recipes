@@ -15,6 +15,7 @@ import static com.mendix.recipes.TestRecipes.recipe;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -164,6 +165,30 @@ class RecipesApiIntegrationTests {
         mockMvc.perform(get("/v1/recipes").param("foo", "bar"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Unknown filter"));
+    }
+
+    @Test
+    void unsupportedHttpMethodReturns405InsteadOf500() throws Exception {
+        mockMvc.perform(delete("/v1/recipes/" + UUID.randomUUID()))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.title").value("Method not allowed"))
+                .andExpect(jsonPath("$.status").value(405));
+    }
+
+    @Test
+    void unsupportedContentTypeReturns415InsteadOf500() throws Exception {
+        mockMvc.perform(post("/v1/recipes")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not json"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.title").value("Unsupported media type"))
+                .andExpect(jsonPath("$.status").value(415));
+    }
+
+    @Test
+    void unacceptableAcceptHeaderReturns406InsteadOf500() throws Exception {
+        mockMvc.perform(get("/v1/recipes").accept(MediaType.TEXT_PLAIN))
+                .andExpect(status().isNotAcceptable());
     }
 
     @Test

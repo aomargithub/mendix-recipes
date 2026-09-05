@@ -10,12 +10,17 @@ import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.http.MockHttpInputMessage;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -42,6 +47,49 @@ class ApiExceptionHandlerTests {
         assertEquals(HttpStatus.NOT_FOUND.value(), problem.getStatus());
         assertEquals("Not found", problem.getTitle());
         assertEquals("The requested path does not exist", problem.getDetail());
+    }
+
+    @Test
+    void methodNotSupportedMapsTo405() {
+        ProblemDetail problem = handler.handleMethodNotSupported(
+                new HttpRequestMethodNotSupportedException("DELETE", Set.of("GET")));
+
+        assertEquals(HttpStatus.METHOD_NOT_ALLOWED.value(), problem.getStatus());
+        assertEquals("Method not allowed", problem.getTitle());
+        assertEquals("Request method 'DELETE' is not supported. Supported methods: [GET]",
+                problem.getDetail());
+    }
+
+    @Test
+    void methodNotSupportedWithoutKnownMethodsMapsTo405() {
+        ProblemDetail problem = handler.handleMethodNotSupported(
+                new HttpRequestMethodNotSupportedException("PATCH"));
+
+        assertEquals(HttpStatus.METHOD_NOT_ALLOWED.value(), problem.getStatus());
+        assertEquals("Method not allowed", problem.getTitle());
+        assertEquals("Request method 'PATCH' is not supported", problem.getDetail());
+    }
+
+    @Test
+    void mediaTypeNotSupportedMapsTo415() {
+        ProblemDetail problem = handler.handleMediaTypeNotSupported(
+                new HttpMediaTypeNotSupportedException(
+                        MediaType.TEXT_PLAIN, List.of(MediaType.APPLICATION_JSON)));
+
+        assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), problem.getStatus());
+        assertEquals("Unsupported media type", problem.getTitle());
+        assertEquals("Content-Type 'text/plain' is not supported", problem.getDetail());
+    }
+
+    @Test
+    void mediaTypeNotAcceptableMapsTo406() {
+        ProblemDetail problem = handler.handleMediaTypeNotAcceptable(
+                new HttpMediaTypeNotAcceptableException("Could not find acceptable representation"));
+
+        assertEquals(HttpStatus.NOT_ACCEPTABLE.value(), problem.getStatus());
+        assertEquals("Not acceptable", problem.getTitle());
+        assertEquals("Could not find acceptable representation for the requested Accept header",
+                problem.getDetail());
     }
 
     @Test

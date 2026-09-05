@@ -5,7 +5,6 @@ import com.mendix.recipes.application.RecipeService;
 import com.mendix.recipes.application.dto.CreateRecipeRequestDto;
 import com.mendix.recipes.application.dto.GetRecipeResponseDto;
 import com.mendix.recipes.application.dto.RecipeSummaryDto;
-import com.mendix.recipes.domain.Recipe;
 import com.mendix.recipes.domain.SortNotSupportedException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;

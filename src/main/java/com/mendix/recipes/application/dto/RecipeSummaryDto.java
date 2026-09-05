@@ -2,7 +2,6 @@ package com.mendix.recipes.application.dto;
 
 import com.mendix.recipes.domain.Recipe;
 
-import java.time.Duration;
 import java.util.UUID;
 
 public record RecipeSummaryDto(

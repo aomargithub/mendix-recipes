@@ -1,8 +1,6 @@
 package com.mendix.recipes.application.dto;
 
-import com.mendix.recipes.domain.MeasurementUnit;
 import com.mendix.recipes.domain.Recipe;
-import com.mendix.recipes.domain.UnknownMeasurementUnitException;
 
 import java.time.Duration;
 import java.util.Date;

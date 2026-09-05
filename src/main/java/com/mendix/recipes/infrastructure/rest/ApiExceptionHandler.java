@@ -7,13 +7,19 @@ import com.mendix.recipes.domain.UnknownFilterException;
 import com.mendix.recipes.domain.UnknownMeasurementUnitException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import java.util.Set;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -28,6 +34,26 @@ public class ApiExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     public ProblemDetail handleNoResourceFound(NoResourceFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, "Not found", "The requested path does not exist");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ProblemDetail handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        Set<HttpMethod> supported = ex.getSupportedHttpMethods();
+        String detail = supported == null
+                ? ex.getMessage()
+                : ex.getMessage() + ". Supported methods: " + supported;
+        return problem(HttpStatus.METHOD_NOT_ALLOWED, "Method not allowed", detail);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ProblemDetail handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        return problem(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported media type", ex.getMessage());
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ProblemDetail handleMediaTypeNotAcceptable(HttpMediaTypeNotAcceptableException ex) {
+        return problem(HttpStatus.NOT_ACCEPTABLE, "Not acceptable",
+                "Could not find acceptable representation for the requested Accept header");
     }
 
     @ExceptionHandler(RecipeNameAlreadyExistsException.class)
