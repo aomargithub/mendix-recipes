@@ -21,7 +21,7 @@ public record Recipe(
 ) {
     public Recipe {
         if (id == null) {
-            throw new IllegalArgumentException("Recipe id must not null");
+            throw new IllegalArgumentException("Recipe id must not be null");
         }
         if (name == null || name.isBlank())
             throw new IllegalArgumentException("Recipe name must not be blank");
