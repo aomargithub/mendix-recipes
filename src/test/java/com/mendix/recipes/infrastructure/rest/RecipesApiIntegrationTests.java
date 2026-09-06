@@ -9,6 +9,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.Date;
+import java.util.Set;
 import java.util.UUID;
 
 import static com.mendix.recipes.TestRecipes.recipe;
@@ -164,7 +166,39 @@ class RecipesApiIntegrationTests {
 
         mockMvc.perform(get("/v1/recipes").param("foo", "bar"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Unknown filter"));
+                .andExpect(jsonPath("$.title").value("Unknown parameter"));
+
+        mockMvc.perform(get("/v1/recipes").param("name", "pasta"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Unknown parameter"));
+    }
+
+    @Test
+    void searchKeyMatchesNameAuthorOrCategory() throws Exception {
+        assertTrue(recipesRepository.addRecipe(
+                recipe("Searchable Pancakes", "Baker Betty", Set.of("brunchfusion"), new Date())));
+
+        mockMvc.perform(get("/v1/recipes").param("q", "searchable pancakes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Searchable Pancakes"));
+
+        mockMvc.perform(get("/v1/recipes").param("q", "baker betty"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Searchable Pancakes"));
+
+        mockMvc.perform(get("/v1/recipes").param("q", "BRUNCHFUSION"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Searchable Pancakes"));
+    }
+
+    @Test
+    void blankSearchKeyReturnsAllRecipes() throws Exception {
+        mockMvc.perform(get("/v1/recipes").param("q", "   "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
     }
 
     @Test
@@ -198,7 +232,7 @@ class RecipesApiIntegrationTests {
         }
 
         mockMvc.perform(get("/v1/recipes")
-                        .param("name", "Paging Alpha")
+                        .param("q", "Paging Alpha")
                         .param("page", "0")
                         .param("size", "10"))
                 .andExpect(status().isOk())
@@ -209,7 +243,7 @@ class RecipesApiIntegrationTests {
                 .andExpect(jsonPath("$.page.totalPages").value(2));
 
         mockMvc.perform(get("/v1/recipes")
-                        .param("name", "Paging Alpha")
+                        .param("q", "Paging Alpha")
                         .param("page", "1")
                         .param("size", "10"))
                 .andExpect(status().isOk())

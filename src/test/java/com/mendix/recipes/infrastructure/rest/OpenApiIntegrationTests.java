@@ -30,6 +30,14 @@ class OpenApiIntegrationTests {
     }
 
     @Test
+    void searchParamIsDocumentedOnRecipesEndpoint() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.paths['/v1/recipes'].get.parameters[?(@.name == 'q')]").exists());
+    }
+
+    @Test
     void swaggerUiIsServed() throws Exception {
         mockMvc.perform(get("/swagger-ui/index.html"))
                 .andExpect(status().isOk());

@@ -3,8 +3,8 @@ package com.mendix.recipes.infrastructure.rest;
 import com.mendix.recipes.domain.RecipeNameAlreadyExistsException;
 import com.mendix.recipes.domain.ResourceNotFoundException;
 import com.mendix.recipes.domain.SortNotSupportedException;
-import com.mendix.recipes.domain.UnknownFilterException;
 import com.mendix.recipes.domain.UnknownMeasurementUnitException;
+import com.mendix.recipes.domain.UnknownParameterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
@@ -61,9 +61,9 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.CONFLICT, "Recipe already exists", ex.getMessage());
     }
 
-    @ExceptionHandler(UnknownFilterException.class)
-    public ProblemDetail handleUnknownFilter(UnknownFilterException ex) {
-        return problem(HttpStatus.BAD_REQUEST, "Unknown filter", ex.getMessage());
+    @ExceptionHandler(UnknownParameterException.class)
+    public ProblemDetail handleUnknownParameter(UnknownParameterException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Unknown parameter", ex.getMessage());
     }
 
     @ExceptionHandler(SortNotSupportedException.class)

@@ -9,10 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class RecipeService {
@@ -32,14 +29,8 @@ public class RecipeService {
         return recipes;
     }
 
-    public Page<RecipeSummaryDto> findRecipesBy(Map<String, String> criteria, Pageable pageable) {
-        Set<String> unknown = criteria.keySet().stream()
-                .filter(key -> !RecipeQueryPort.SUPPORTED_FILTERS.contains(key))
-                .collect(Collectors.toSet());
-        if (!unknown.isEmpty()) {
-            throw new UnknownFilterException(unknown, RecipeQueryPort.SUPPORTED_FILTERS);
-        }
-        return recipeQueryPort.findRecipesBy(criteria, pageable);
+    public Page<RecipeSummaryDto> search(String searchKey, Pageable pageable) {
+        return recipeQueryPort.search(searchKey == null ? null : searchKey.trim(), pageable);
     }
 
     public List<String> getAllCategories() {

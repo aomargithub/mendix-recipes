@@ -28,7 +28,7 @@ and logs how many recipes were seeded.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/v1/recipes` | All recipes. Optional substring filters: `name`, `category`, `author` (case-insensitive). Optional paging: `page` (zero-based) and `size`. |
+| GET | `/v1/recipes` | All recipes. Optional search key: `q` — case-insensitive substring matched against recipe name, categories, and author (a hit on any field includes the recipe). Optional paging: `page` (zero-based) and `size`. |
 | GET | `/v1/recipes/{id}` | Full details of one recipe. |
 | GET | `/v1/categories` | All recipe categories. |
 | GET | `/v1/categories/{category}/recipes` | Recipes in one category (unknown category returns 404). |
@@ -73,12 +73,13 @@ Everything runs against the in-memory store — no database or external services
 4. REST API versioned under `/v1` and served under a dedicated context path.
 5. RFC 7807 `ProblemDetail` error bodies with proper status codes: 400 validation, 404 not found, 409 duplicate name.
 6. Listing endpoints return all results unless `page`/`size` are requested; the `sort` parameter is explicitly rejected with 400 instead of being silently ignored.
-7. DTOs at the boundary only — the domain `Recipe` never leaks through REST.
-8. Duplicate recipe names are rejected case-insensitively (409).
-9. RecipeML seed files are parsed with Jackson XML at startup; a broken or duplicate seed file fails startup (fail fast).
-10. springdoc-openapi serves live Swagger/OpenAPI documentation for API consumers.
-11. Testing pyramid: the bulk are fast unit tests, plus a minimal set of end-to-end integration tests through the REST layer.
-12. Spring was chosen as it is the most common framework within the backend JVM community.
+7. Search uses a single `q` parameter matched (OR) against recipe name, categories, and author for a simpler search UX. Any other query parameter is rejected with 400.
+8. DTOs at the boundary only — the domain `Recipe` never leaks through REST.
+9. Duplicate recipe names are rejected case-insensitively (409).
+10. RecipeML seed files are parsed with Jackson XML at startup; a broken or duplicate seed file fails startup (fail fast).
+11. springdoc-openapi serves live Swagger/OpenAPI documentation for API consumers.
+12. Testing pyramid: the bulk are fast unit tests, plus a minimal set of end-to-end integration tests through the REST layer.
+13. Spring was chosen as it is the most common framework within the backend JVM community.
 
 ## How did I use AI
 
@@ -87,3 +88,5 @@ Everything runs against the in-memory store — no database or external services
 3. AI was used to write the tests.
 4. Some other boilerplate code was written by AI, like the error handlers, the seed data loader at startup, and this README file — except for this section, of course :).
 5. OpenCode Go with GLM 5.3 was used, as it is cost-efficient, less stubborn, and easier to drive than frontier models.
+6. My flow is, start with plan mode > prompt for change > loop until I am satisfied with plan > execute the plan. 
+7. And to keep the context between sessions I use plan.md (Stored locally in OpenCode data dir) file to document decisions, so every new session has the full context with no need to start over from the beginning. 

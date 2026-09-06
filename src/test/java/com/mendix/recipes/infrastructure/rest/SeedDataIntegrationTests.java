@@ -20,7 +20,7 @@ class SeedDataIntegrationTests {
 
     @Test
     void seededRecipesAreServedByTheApi() throws Exception {
-        mockMvc.perform(get("/v1/recipes").param("name", "30 Minute Chili"))
+        mockMvc.perform(get("/v1/recipes").param("q", "30 Minute Chili"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.page.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].name").value("30 Minute Chili"));

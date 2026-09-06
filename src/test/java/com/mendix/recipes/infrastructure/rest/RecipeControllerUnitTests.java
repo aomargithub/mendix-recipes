@@ -6,9 +6,9 @@ import com.mendix.recipes.application.dto.GetRecipeResponseDto;
 import com.mendix.recipes.application.dto.RecipeSummaryDto;
 import com.mendix.recipes.domain.Recipe;
 import com.mendix.recipes.domain.SortNotSupportedException;
+import com.mendix.recipes.domain.UnknownParameterException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -17,7 +17,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -27,10 +26,12 @@ import static com.mendix.recipes.TestRecipes.recipe;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -48,13 +49,13 @@ class RecipeControllerUnitTests {
     @Test
     void sortParamIsRejectedOnRecipesEndpoint() {
         assertThrows(SortNotSupportedException.class,
-                () -> controller.findRecipesBy(Map.of("sort", "name"), Pageable.unpaged()));
+                () -> controller.findRecipes(null, Map.of("sort", "name"), Pageable.unpaged()));
     }
 
     @Test
     void sortParamIsRejectedCaseInsensitive() {
         assertThrows(SortNotSupportedException.class,
-                () -> controller.findRecipesBy(Map.of("SORT", "name"), Pageable.unpaged()));
+                () -> controller.findRecipes(null, Map.of("SORT", "name"), Pageable.unpaged()));
     }
 
     @Test
@@ -65,36 +66,59 @@ class RecipeControllerUnitTests {
     }
 
     @Test
-    void pagingParamsAreStrippedFromSearchCriteria() {
-        Map<String, String> params = new HashMap<>();
-        params.put("name", "pasta");
-        params.put("page", "1");
-        params.put("size", "10");
+    void searchKeyIsForwardedToService() {
         stubRecipesPage();
 
-        controller.findRecipesBy(params, PageRequest.of(1, 10));
+        controller.findRecipes("pasta", Map.of("q", "pasta"), Pageable.unpaged());
 
-        ArgumentCaptor<Map<String, String>> criteria = ArgumentCaptor.forClass(Map.class);
-        verify(recipeService).findRecipesBy(criteria.capture(), eq(PageRequest.of(1, 10)));
-        assertEquals(Map.of("name", "pasta"), criteria.getValue());
+        verify(recipeService).search(eq("pasta"), eq(Pageable.unpaged()));
+    }
+
+    @Test
+    void unknownParamsAreRejected() {
+        UnknownParameterException ex = assertThrows(UnknownParameterException.class,
+                () -> controller.findRecipes(null, Map.of("foo", "bar"), Pageable.unpaged()));
+
+        assertTrue(ex.getMessage().contains("foo"));
+        verify(recipeService, never()).search(any(), any(Pageable.class));
+    }
+
+    @Test
+    void legacyFilterParamsAreRejected() {
+        assertThrows(UnknownParameterException.class,
+                () -> controller.findRecipes(null, Map.of("name", "pasta"), Pageable.unpaged()));
+        assertThrows(UnknownParameterException.class,
+                () -> controller.findRecipes(null, Map.of("category", "mexican"), Pageable.unpaged()));
+        assertThrows(UnknownParameterException.class,
+                () -> controller.findRecipes(null, Map.of("author", "chef"), Pageable.unpaged()));
     }
 
     @Test
     void noPagingParamsYieldsUnpaged() {
         stubRecipesPage();
 
-        controller.findRecipesBy(Map.of("name", "pasta"), PageRequest.of(0, 20));
+        controller.findRecipes("pasta", Map.of("q", "pasta"), PageRequest.of(0, 20));
 
-        verify(recipeService).findRecipesBy(eq(Map.of("name", "pasta")), eq(Pageable.unpaged()));
+        verify(recipeService).search(eq("pasta"), eq(Pageable.unpaged()));
     }
 
     @Test
     void pagingParamsYieldRequestedPageable() {
         stubRecipesPage();
 
-        controller.findRecipesBy(Map.of("page", "2", "size", "10"), PageRequest.of(2, 10));
+        controller.findRecipes(null, Map.of("page", "2", "size", "10"), PageRequest.of(2, 10));
 
-        verify(recipeService).findRecipesBy(eq(Map.of()), eq(PageRequest.of(2, 10)));
+        verify(recipeService).search(isNull(), eq(PageRequest.of(2, 10)));
+    }
+
+    @Test
+    void searchKeyAndPagingParamsAreAcceptedTogether() {
+        stubRecipesPage();
+
+        controller.findRecipes("pasta", Map.of("q", "pasta", "page", "1", "size", "10"),
+                PageRequest.of(1, 10));
+
+        verify(recipeService).search(eq("pasta"), eq(PageRequest.of(1, 10)));
     }
 
     @Test
@@ -152,7 +176,7 @@ class RecipeControllerUnitTests {
 
     private void stubRecipesPage() {
         Page<RecipeSummaryDto> page = new PageImpl<>(List.of(), Pageable.unpaged(), 0);
-        when(recipeService.findRecipesBy(anyMap(), any(Pageable.class))).thenReturn(page);
+        when(recipeService.search(any(), any(Pageable.class))).thenReturn(page);
         when(recipeService.getRecipesByCategory(any(), any(Pageable.class))).thenReturn(page);
     }
 }

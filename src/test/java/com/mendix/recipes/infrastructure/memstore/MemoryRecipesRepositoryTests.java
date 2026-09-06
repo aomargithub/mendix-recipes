@@ -12,7 +12,6 @@ import org.springframework.data.domain.Pageable;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -88,14 +87,14 @@ class MemoryRecipesRepositoryTests {
         writer.start();
         while (writer.isAlive()) {
             repository.getRecipesByCategory("italian", PageRequest.of(0, 10));
-            repository.findRecipesBy(Map.of("name", "Recipe"), PageRequest.of(0, 10));
+            repository.search("Recipe", PageRequest.of(0, 10));
             repository.getAllCategories();
             repository.getRecipeById(fifthRecipeId);
             repository.getRecipesByCategory("italian", Pageable.unpaged());
         }
         writer.join();
 
-        assertEquals(10_000, repository.findRecipesBy(Map.of(), PageRequest.of(0, 1)).getTotalElements());
+        assertEquals(10_000, repository.search(null, PageRequest.of(0, 1)).getTotalElements());
     }
 
     @Test
@@ -104,7 +103,7 @@ class MemoryRecipesRepositoryTests {
         repository.addRecipe(recipe("Pasta"));
 
         assertFalse(repository.addRecipe(recipe("PASTA")));
-        assertEquals(1, repository.findRecipesBy(Map.of(), Pageable.unpaged()).getTotalElements());
+        assertEquals(1, repository.search(null, Pageable.unpaged()).getTotalElements());
     }
 
     @Test
@@ -124,41 +123,37 @@ class MemoryRecipesRepositoryTests {
     }
 
     @Test
-    void filtersByNameCaseInsensitively() {
+    void searchMatchesNameAuthorAndCategoryCaseInsensitively() {
         MemoryRecipesRepository repository = new MemoryRecipesRepository();
-        repository.addRecipe(recipe("Pasta Carbonara"));
+        repository.addRecipe(recipe("Pasta Carbonara", AUTHOR, Set.of("italian"), new Date()));
+        repository.addRecipe(recipe("Tacos", "Baker", Set.of("mexican"), new Date()));
+
+        assertEquals(1, repository.search("carbonara", Pageable.unpaged()).getTotalElements());
+        assertEquals(1, repository.search("TACOS", Pageable.unpaged()).getTotalElements());
+        assertEquals(1, repository.search("BAKER", Pageable.unpaged()).getTotalElements());
+        assertEquals(1, repository.search("MEX", Pageable.unpaged()).getTotalElements());
+    }
+
+    @Test
+    void searchKeyMatchesAnyFieldWithOrSemantics() {
+        MemoryRecipesRepository repository = new MemoryRecipesRepository();
+        repository.addRecipe(recipe("Pasta Carbonara", AUTHOR, Set.of("italian"), new Date()));
+        repository.addRecipe(recipe("Tacos", "Baker", Set.of("mexican"), new Date()));
+        repository.addRecipe(recipe("Sushi", "Chef", Set.of("japanese"), new Date()));
+
+        assertEquals(3, repository.search("a", Pageable.unpaged()).getTotalElements());
+        assertEquals(0, repository.search("pancakes", Pageable.unpaged()).getTotalElements());
+    }
+
+    @Test
+    void blankSearchKeyReturnsAllRecipes() {
+        MemoryRecipesRepository repository = new MemoryRecipesRepository();
+        repository.addRecipe(recipe("Pasta"));
         repository.addRecipe(recipe("Pizza"));
 
-        assertEquals(1, repository.findRecipesBy(Map.of("name", "carbonara"), Pageable.unpaged())
-                .getTotalElements());
-        assertEquals(1, repository.findRecipesBy(Map.of("name", "PIZZA"), Pageable.unpaged())
-                .getTotalElements());
-    }
-
-    @Test
-    void filtersByAuthorAndCategory() {
-        MemoryRecipesRepository repository = new MemoryRecipesRepository();
-        repository.addRecipe(recipe("Pasta", AUTHOR, Set.of("italian"), new Date()));
-        repository.addRecipe(recipe("Tacos", "Baker", Set.of("mexican"), new Date()));
-
-        assertEquals(1, repository.findRecipesBy(Map.of("author", "baker"), Pageable.unpaged())
-                .getTotalElements());
-        assertEquals(1, repository.findRecipesBy(Map.of("category", "mex"), Pageable.unpaged())
-                .getTotalElements());
-    }
-
-    @Test
-    void multipleCriteriaAreAnded() {
-        MemoryRecipesRepository repository = new MemoryRecipesRepository();
-        repository.addRecipe(recipe("Pasta", AUTHOR, Set.of("italian"), new Date()));
-        repository.addRecipe(recipe("Tacos", "Baker", Set.of("mexican"), new Date()));
-
-        assertEquals(1, repository.findRecipesBy(
-                Map.of("author", "baker", "category", "mexican"), Pageable.unpaged())
-                .getTotalElements());
-        assertEquals(0, repository.findRecipesBy(
-                Map.of("author", "chef", "category", "mexican"), Pageable.unpaged())
-                .getTotalElements());
+        assertEquals(2, repository.search(null, Pageable.unpaged()).getTotalElements());
+        assertEquals(2, repository.search("", Pageable.unpaged()).getTotalElements());
+        assertEquals(2, repository.search("   ", Pageable.unpaged()).getTotalElements());
     }
 
     @Test
@@ -168,7 +163,7 @@ class MemoryRecipesRepositoryTests {
             repository.addRecipe(recipe("Recipe " + i));
         }
 
-        Page<RecipeSummaryDto> page = repository.findRecipesBy(Map.of(), PageRequest.of(2, 10));
+        Page<RecipeSummaryDto> page = repository.search(null, PageRequest.of(2, 10));
 
         assertEquals(5, page.getContent().size());
         assertEquals(25, page.getTotalElements());
@@ -182,7 +177,7 @@ class MemoryRecipesRepositoryTests {
             repository.addRecipe(recipe("Recipe " + i));
         }
 
-        Page<RecipeSummaryDto> page = repository.findRecipesBy(Map.of(), PageRequest.of(5, 10));
+        Page<RecipeSummaryDto> page = repository.search(null, PageRequest.of(5, 10));
 
         assertTrue(page.getContent().isEmpty());
         assertEquals(25, page.getTotalElements());
@@ -196,7 +191,7 @@ class MemoryRecipesRepositoryTests {
         repository.addRecipe(recipe("Oldest", AUTHOR, Set.of("italian"), new Date(now - 5_000)));
         repository.addRecipe(recipe("Middle", AUTHOR, Set.of("italian"), new Date(now)));
 
-        Page<RecipeSummaryDto> page = repository.findRecipesBy(Map.of(), Pageable.unpaged());
+        Page<RecipeSummaryDto> page = repository.search(null, Pageable.unpaged());
 
         assertEquals(List.of("Oldest", "Middle", "Latest"),
                 page.getContent().stream().map(RecipeSummaryDto::name).toList());

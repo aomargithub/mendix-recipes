@@ -6,6 +6,7 @@ import com.mendix.recipes.application.dto.CreateRecipeRequestDto;
 import com.mendix.recipes.application.dto.GetRecipeResponseDto;
 import com.mendix.recipes.application.dto.RecipeSummaryDto;
 import com.mendix.recipes.domain.SortNotSupportedException;
+import com.mendix.recipes.domain.UnknownParameterException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,16 +14,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/v1")
 public class RecipeController {
     private static final Set<String> PAGING_PARAMS = Set.of("page", "size");
+    private static final Set<String> SUPPORTED_PARAMS = Set.of("q", "page", "size");
 
     private final RecipeService recipeService;
 
@@ -36,10 +38,14 @@ public class RecipeController {
     }
 
     @GetMapping("/recipes")
-    public ResponseEntity<Page<RecipeSummaryDto>> findRecipesBy(@RequestParam Map<String, String> searchParams, Pageable pageable) {
-        rejectSorting(searchParams);
-        Pageable effectivePageable = unpagedUnlessPagingRequested(searchParams, pageable);
-        return ResponseEntity.ok(recipeService.findRecipesBy(cleanSearchCriteria(searchParams), effectivePageable));
+    public ResponseEntity<Page<RecipeSummaryDto>> findRecipes(
+            @RequestParam(name = "q", required = false) String searchKey,
+            @RequestParam Map<String, String> params,
+            Pageable pageable) {
+        rejectSorting(params);
+        rejectUnknownParameters(params);
+        Pageable effectivePageable = unpagedUnlessPagingRequested(params, pageable);
+        return ResponseEntity.ok(recipeService.search(searchKey, effectivePageable));
     }
 
     @GetMapping("/recipes/{id}")
@@ -67,10 +73,13 @@ public class RecipeController {
         }
     }
 
-    private Map<String, String> cleanSearchCriteria(Map<String, String> params) {
-        Map<String, String> criteria = new HashMap<>(params);
-        criteria.keySet().removeAll(PAGING_PARAMS);
-        return criteria;
+    private static void rejectUnknownParameters(Map<String, String> params) {
+        Set<String> unknown = params.keySet().stream()
+                .filter(param -> !SUPPORTED_PARAMS.contains(param))
+                .collect(Collectors.toSet());
+        if (!unknown.isEmpty()) {
+            throw new UnknownParameterException(unknown, SUPPORTED_PARAMS);
+        }
     }
 
     private static Pageable unpagedUnlessPagingRequested(Map<String, String> params, Pageable pageable) {

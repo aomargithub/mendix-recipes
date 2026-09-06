@@ -3,8 +3,8 @@ package com.mendix.recipes.infrastructure.rest;
 import com.mendix.recipes.domain.RecipeNameAlreadyExistsException;
 import com.mendix.recipes.domain.ResourceNotFoundException;
 import com.mendix.recipes.domain.SortNotSupportedException;
-import com.mendix.recipes.domain.UnknownFilterException;
 import com.mendix.recipes.domain.UnknownMeasurementUnitException;
+import com.mendix.recipes.domain.UnknownParameterException;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpInputMessage;
@@ -103,12 +103,12 @@ class ApiExceptionHandlerTests {
     }
 
     @Test
-    void unknownFilterMapsTo400() {
-        ProblemDetail problem = handler.handleUnknownFilter(
-                new UnknownFilterException(Set.of("cuisine"), Set.of("name", "category", "author")));
+    void unknownParameterMapsTo400() {
+        ProblemDetail problem = handler.handleUnknownParameter(
+                new UnknownParameterException(Set.of("cuisine"), Set.of("q", "page", "size")));
 
         assertEquals(HttpStatus.BAD_REQUEST.value(), problem.getStatus());
-        assertEquals("Unknown filter", problem.getTitle());
+        assertEquals("Unknown parameter", problem.getTitle());
     }
 
     @Test

@@ -10,7 +10,6 @@ import tools.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -166,7 +165,7 @@ public record RecipeMlXml(
         if (unit == null || unit.isBlank()) {
             return MeasurementUnit.PIECE;
         }
-        return switch (unit.trim().toLowerCase(Locale.ROOT)) {
+        return switch (unit.trim().toLowerCase()) {
             case "cup", "cups" -> MeasurementUnit.CUP;
             case "tablespoon", "tablespoons" -> MeasurementUnit.TABLESPOON;
             case "teaspoon", "teaspoons" -> MeasurementUnit.TEASPOON;

@@ -6,7 +6,6 @@ import com.mendix.recipes.domain.Recipe;
 import com.mendix.recipes.domain.RecipeNameAlreadyExistsException;
 import com.mendix.recipes.domain.RecipesRepository;
 import com.mendix.recipes.domain.ResourceNotFoundException;
-import com.mendix.recipes.domain.UnknownFilterException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -16,7 +15,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static com.mendix.recipes.TestRecipes.createRequest;
@@ -24,12 +22,9 @@ import static com.mendix.recipes.TestRecipes.recipe;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,24 +42,23 @@ class RecipeServiceTests {
     }
 
     @Test
-    void findRecipesByRejectsUnknownFilters() {
-        UnknownFilterException ex = assertThrows(UnknownFilterException.class,
-                () -> recipeService.findRecipesBy(Map.of("cuisine", "french"), Pageable.unpaged()));
+    void searchForwardsTrimmedKeyAndPageable() {
+        Pageable pageable = PageRequest.of(1, 10);
+        Page<RecipeSummaryDto> expected = new PageImpl<>(List.of(), pageable, 0);
+        when(recipeQueryPort.search("pasta", pageable)).thenReturn(expected);
 
-        assertTrue(ex.getMessage().contains("cuisine"));
-        assertTrue(ex.getMessage().contains("name"));
-        verify(recipeQueryPort, never()).findRecipesBy(anyMap(), any());
+        Page<RecipeSummaryDto> result = recipeService.search("  pasta  ", pageable);
+
+        assertSame(expected, result);
     }
 
     @Test
-    void findRecipesByForwardsCriteriaAndPageable() {
-        Pageable pageable = PageRequest.of(1, 10);
+    void searchForwardsNullKey() {
+        Pageable pageable = Pageable.unpaged();
         Page<RecipeSummaryDto> expected = new PageImpl<>(List.of(), pageable, 0);
-        when(recipeQueryPort.findRecipesBy(Map.of("name", "pasta"), pageable)).thenReturn(expected);
+        when(recipeQueryPort.search(null, pageable)).thenReturn(expected);
 
-        Page<RecipeSummaryDto> result = recipeService.findRecipesBy(Map.of("name", "pasta"), pageable);
-
-        assertSame(expected, result);
+        assertSame(expected, recipeService.search(null, pageable));
     }
 
     @Test
