@@ -170,6 +170,7 @@ export async function buildHomePage(
 
     const grid = layoutGrid(
         model,
+        "homeGrid",
         row(model, column(model, -1, dynamicText(templates, "pageHeader", "Recipes", [], pages.TextRenderMode.H1))),
         row(model, leftColumn, rightColumn)
     );
@@ -220,7 +221,7 @@ export async function buildDetailPage(
         list.dataSource = microflowSource(
             model,
             flow,
-            [{ parameterName: parameter.name, widget: dataView }],
+            [{ parameterName: parameter.name, widget: dataView, pageParameter }],
             deferred
         );
         widgets.forEach(widget => list.widgets.push(widget));
@@ -258,6 +259,7 @@ export async function buildDetailPage(
 
     const grid = layoutGrid(
         model,
+        "detailGrid",
         row(model, column(model, -1, back)),
         row(
             model,

@@ -95,8 +95,9 @@ export function row(model: IModel, ...columns: pages.LayoutGridColumn[]): pages.
     return result;
 }
 
-export function layoutGrid(model: IModel, ...rows: pages.LayoutGridRow[]): pages.LayoutGrid {
+export function layoutGrid(model: IModel, name: string, ...rows: pages.LayoutGridRow[]): pages.LayoutGrid {
     const result = pages.LayoutGrid.create(model);
+    result.name = name;
     result.width = pages.ContainerWidth.FullWidth;
     rows.forEach(item => result.rows.push(item));
     return result;
@@ -126,31 +127,49 @@ export function microflowClientAction(model: IModel, microflow: microflows.IMicr
 export type DeferredBindings = (() => void)[];
 
 /**
+ * Where a data source parameter gets its object from.
+ *
+ * Studio Pro offers a fixed list of variables at each point on a page and matches a mapping
+ * against it by identity, not by entity type, so a mapping is only accepted when it names the
+ * variable exactly as Studio Pro would have built it. A data view that reads a page parameter
+ * contributes a variable naming *both* the data view and that parameter; a data view fed by
+ * anything else contributes one naming the data view alone. Naming only the data view in the
+ * first case matches nothing, and the page fails its consistency check with CE0115.
+ */
+export interface ParameterSource {
+    parameterName: string;
+    widget: pages.EntityWidget;
+    /** Set when `widget` is a data view whose own object comes from a page parameter. */
+    pageParameter?: pages.PageParameter;
+}
+
+/**
  * A microflow data source. Unlike a client action, which receives the enclosing data context
- * implicitly, a data source names its parameters and says which widget supplies each object.
+ * implicitly, a data source names its parameters and says which variable supplies each object.
  */
 export function microflowSource(
     model: IModel,
     microflow: microflows.IMicroflow,
-    parameterWidgets: { parameterName: string; widget: pages.EntityWidget }[] = [],
+    parameterSources: ParameterSource[] = [],
     deferred?: DeferredBindings
 ): pages.MicroflowSource {
     const settingsElement = pages.MicroflowSettings.create(model);
     settingsElement.microflow = microflow;
-    for (const { parameterName, widget } of parameterWidgets) {
+    for (const { parameterName, widget, pageParameter } of parameterSources) {
         const mapping = pages.MicroflowParameterMapping.create(model);
         // A microflow parameter is referred to by qualified name. The typed setter wants an
         // `IMicroflowParameter`, which the parameter box in a microflow is not, so the reference
         // is written the way the Model SDK's own serializer writes one it cannot resolve.
         (mapping as any).__parameter.updateWithRawValue(`${microflow.qualifiedName}.${parameterName}`);
         // Mapping a parameter straight onto a widget was dropped in Mendix 8.4; a page variable
-        // now stands between the two, and it references the widget by its name on the page.
+        // now stands between the two, and it references its provider by name on the page.
         const variable = pages.PageVariable.create(model);
         mapping.variable = variable;
         settingsElement.parameterMappings.push(mapping);
         if (!deferred) throw new Error("Mapping a data source parameter onto a widget needs a deferred binding list.");
         deferred.push(() => {
             variable.widget = widget;
+            if (pageParameter) variable.pageParameter = pageParameter;
         });
     }
     const source = pages.MicroflowSource.create(model);
