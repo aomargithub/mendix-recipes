@@ -223,14 +223,27 @@
   - JavaAction: ValidateEmail
   - JavaAction: XSS_Sanitizer
 
-## MyFirstModule **[own module]** - 20 document(s)
+## MyFirstModule **[own module]** - 34 document(s)
+  - Microflow: ACT_AddCategory
+  - Microflow: ACT_AddIngredient
+  - Microflow: ACT_AddStep
+  - Microflow: ACT_NewRecipe
+  - Microflow: ACT_RemoveCategory
+  - Microflow: ACT_RemoveIngredient
+  - Microflow: ACT_RemoveStep
+  - Microflow: ACT_SaveRecipe
   - Microflow: ACT_SelectCategory
   - Microflow: ACT_ShowAllRecipes
   - Microflow: ACT_ShowRecipe
   - ImportMapping: Categories_ImportMapping
   - JsonStructure: Categories_Response
+  - ExportMapping: CreateRecipe_ExportMapping
+  - JsonStructure: CreateRecipe_Request
   - Microflow: DS_Categories
   - Microflow: DS_HomeContext
+  - Microflow: DS_NewRecipeCategories
+  - Microflow: DS_NewRecipeIngredients
+  - Microflow: DS_NewRecipeSteps
   - Microflow: DS_RecipeCategories
   - Microflow: DS_RecipeIngredients
   - Microflow: DS_Recipes
@@ -240,6 +253,7 @@
   - Microflow: MyFirstLogic
   - Page: Recipe_Detail
   - ImportMapping: Recipe_ImportMapping
+  - Page: Recipe_New
   - JsonStructure: Recipe_Response
   - ImportMapping: Recipes_ImportMapping
   - JsonStructure: Recipes_Response

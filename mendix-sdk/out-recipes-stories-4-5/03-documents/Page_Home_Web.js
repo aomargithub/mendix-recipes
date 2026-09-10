@@ -207,10 +207,41 @@
 
 	var translation6 = texts.Translation.create(model);
 	translation6.languageCode = "en_US";
-	translation6.text = "Filtered by: {1}";
+	translation6.text = "Add a recipe";
 
 	var text12 = texts.Text.create(model);
 	text12.translations.push(translation6);
+
+	var text13 = texts.Text.create(model);
+
+	var clientTemplate6 = pages.ClientTemplate.create(model);
+	clientTemplate6.template = text12;   // Note: for this property a default value is defined.
+	clientTemplate6.fallback = text13;   // Note: for this property a default value is defined.
+
+	var text14 = texts.Text.create(model);
+
+	var microflowSettings5 = pages.MicroflowSettings.create(model);
+	microflowSettings5.microflow = model.findMicroflowByQualifiedName("MyFirstModule.ACT_NewRecipe");
+
+	var microflowClientAction3 = pages.MicroflowClientAction.create(model);
+	microflowClientAction3.microflowSettings = microflowSettings5;   // Note: for this property a default value is defined.
+
+	var addRecipeButton1 = pages.ActionButton.create(model);
+	addRecipeButton1.name = "addRecipeButton";
+	addRecipeButton1.appearance = appearance14;   // Note: for this property a default value is defined.
+	addRecipeButton1.caption = clientTemplate6;   // Note: for this property a default value is defined.
+	addRecipeButton1.tooltip = text14;   // Note: for this property a default value is defined.
+	addRecipeButton1.renderType = pages.RenderType.Link;
+	addRecipeButton1.action = microflowClientAction3;   // Note: for this property a default value is defined.
+
+	var appearance15 = pages.Appearance.create(model);
+
+	var translation7 = texts.Translation.create(model);
+	translation7.languageCode = "en_US";
+	translation7.text = "Filtered by: {1}";
+
+	var text15 = texts.Text.create(model);
+	text15.translations.push(translation7);
 
 	var attributeRef2 = domainmodels.AttributeRef.create(model);
 	attributeRef2.attribute = model.findAttributeByQualifiedName("MyFirstModule.HomeContext.SelectedCategory");
@@ -221,20 +252,21 @@
 	clientTemplateParameter2.attributeRef = attributeRef2;
 	clientTemplateParameter2.formattingInfo = formattingInfo2;   // Note: for this property a default value is defined.
 
-	var text13 = texts.Text.create(model);
+	var text16 = texts.Text.create(model);
 
-	var clientTemplate6 = pages.ClientTemplate.create(model);
-	clientTemplate6.template = text12;   // Note: for this property a default value is defined.
-	clientTemplate6.parameters.push(clientTemplateParameter2);
-	clientTemplate6.fallback = text13;   // Note: for this property a default value is defined.
+	var clientTemplate7 = pages.ClientTemplate.create(model);
+	clientTemplate7.template = text15;   // Note: for this property a default value is defined.
+	clientTemplate7.parameters.push(clientTemplateParameter2);
+	clientTemplate7.fallback = text16;   // Note: for this property a default value is defined.
 
 	var selectedCategory1 = pages.DynamicText.create(model);
 	selectedCategory1.name = "selectedCategory";
-	selectedCategory1.appearance = appearance14;   // Note: for this property a default value is defined.
-	selectedCategory1.content = clientTemplate6;   // Note: for this property a default value is defined.
+	selectedCategory1.appearance = appearance15;   // Note: for this property a default value is defined.
+	selectedCategory1.content = clientTemplate7;   // Note: for this property a default value is defined.
+	selectedCategory1.renderMode = pages.TextRenderMode.Paragraph;
 
-	var appearance15 = pages.Appearance.create(model);
-	appearance15.class = "recipes-recipe-list";
+	var appearance16 = pages.Appearance.create(model);
+	appearance16.class = "recipes-recipe-list";
 
 	var pageVariable1 = pages.PageVariable.create(model);
 
@@ -243,21 +275,21 @@
 	microflowParameterMapping1.__parameter.updateWithRawValue("MyFirstModule.DS_Recipes.HomeContext");
 	microflowParameterMapping1.variable = pageVariable1;
 
-	var microflowSettings5 = pages.MicroflowSettings.create(model);
-	microflowSettings5.microflow = model.findMicroflowByQualifiedName("MyFirstModule.DS_Recipes");
-	microflowSettings5.parameterMappings.push(microflowParameterMapping1);
+	var microflowSettings6 = pages.MicroflowSettings.create(model);
+	microflowSettings6.microflow = model.findMicroflowByQualifiedName("MyFirstModule.DS_Recipes");
+	microflowSettings6.parameterMappings.push(microflowParameterMapping1);
 
 	var microflowSource3 = pages.MicroflowSource.create(model);
-	microflowSource3.microflowSettings = microflowSettings5;   // Note: for this property a default value is defined.
+	microflowSource3.microflowSettings = microflowSettings6;   // Note: for this property a default value is defined.
 
-	var appearance16 = pages.Appearance.create(model);
+	var appearance17 = pages.Appearance.create(model);
 
-	var translation7 = texts.Translation.create(model);
-	translation7.languageCode = "en_US";
-	translation7.text = "{1}";
+	var translation8 = texts.Translation.create(model);
+	translation8.languageCode = "en_US";
+	translation8.text = "{1}";
 
-	var text14 = texts.Text.create(model);
-	text14.translations.push(translation7);
+	var text17 = texts.Text.create(model);
+	text17.translations.push(translation8);
 
 	var attributeRef3 = domainmodels.AttributeRef.create(model);
 	attributeRef3.attribute = model.findAttributeByQualifiedName("MyFirstModule.RecipeSummary.Name");
@@ -268,27 +300,27 @@
 	clientTemplateParameter3.attributeRef = attributeRef3;
 	clientTemplateParameter3.formattingInfo = formattingInfo3;   // Note: for this property a default value is defined.
 
-	var text15 = texts.Text.create(model);
+	var text18 = texts.Text.create(model);
 
-	var clientTemplate7 = pages.ClientTemplate.create(model);
-	clientTemplate7.template = text14;   // Note: for this property a default value is defined.
-	clientTemplate7.parameters.push(clientTemplateParameter3);
-	clientTemplate7.fallback = text15;   // Note: for this property a default value is defined.
+	var clientTemplate8 = pages.ClientTemplate.create(model);
+	clientTemplate8.template = text17;   // Note: for this property a default value is defined.
+	clientTemplate8.parameters.push(clientTemplateParameter3);
+	clientTemplate8.fallback = text18;   // Note: for this property a default value is defined.
 
 	var recipeName1 = pages.DynamicText.create(model);
 	recipeName1.name = "recipeName";
-	recipeName1.appearance = appearance16;   // Note: for this property a default value is defined.
-	recipeName1.content = clientTemplate7;   // Note: for this property a default value is defined.
+	recipeName1.appearance = appearance17;   // Note: for this property a default value is defined.
+	recipeName1.content = clientTemplate8;   // Note: for this property a default value is defined.
 	recipeName1.renderMode = pages.TextRenderMode.H3;
 
-	var appearance17 = pages.Appearance.create(model);
+	var appearance18 = pages.Appearance.create(model);
 
-	var translation8 = texts.Translation.create(model);
-	translation8.languageCode = "en_US";
-	translation8.text = "{1}";
+	var translation9 = texts.Translation.create(model);
+	translation9.languageCode = "en_US";
+	translation9.text = "{1}";
 
-	var text16 = texts.Text.create(model);
-	text16.translations.push(translation8);
+	var text19 = texts.Text.create(model);
+	text19.translations.push(translation9);
 
 	var attributeRef4 = domainmodels.AttributeRef.create(model);
 	attributeRef4.attribute = model.findAttributeByQualifiedName("MyFirstModule.RecipeSummary.DescriptionPrefix");
@@ -299,26 +331,27 @@
 	clientTemplateParameter4.attributeRef = attributeRef4;
 	clientTemplateParameter4.formattingInfo = formattingInfo4;   // Note: for this property a default value is defined.
 
-	var text17 = texts.Text.create(model);
+	var text20 = texts.Text.create(model);
 
-	var clientTemplate8 = pages.ClientTemplate.create(model);
-	clientTemplate8.template = text16;   // Note: for this property a default value is defined.
-	clientTemplate8.parameters.push(clientTemplateParameter4);
-	clientTemplate8.fallback = text17;   // Note: for this property a default value is defined.
+	var clientTemplate9 = pages.ClientTemplate.create(model);
+	clientTemplate9.template = text19;   // Note: for this property a default value is defined.
+	clientTemplate9.parameters.push(clientTemplateParameter4);
+	clientTemplate9.fallback = text20;   // Note: for this property a default value is defined.
 
 	var recipeDescription1 = pages.DynamicText.create(model);
 	recipeDescription1.name = "recipeDescription";
-	recipeDescription1.appearance = appearance17;   // Note: for this property a default value is defined.
-	recipeDescription1.content = clientTemplate8;   // Note: for this property a default value is defined.
+	recipeDescription1.appearance = appearance18;   // Note: for this property a default value is defined.
+	recipeDescription1.content = clientTemplate9;   // Note: for this property a default value is defined.
+	recipeDescription1.renderMode = pages.TextRenderMode.Paragraph;
 
-	var appearance18 = pages.Appearance.create(model);
+	var appearance19 = pages.Appearance.create(model);
 
-	var translation9 = texts.Translation.create(model);
-	translation9.languageCode = "en_US";
-	translation9.text = "{1} minutes";
+	var translation10 = texts.Translation.create(model);
+	translation10.languageCode = "en_US";
+	translation10.text = "Ready in {1} minutes";
 
-	var text18 = texts.Text.create(model);
-	text18.translations.push(translation9);
+	var text21 = texts.Text.create(model);
+	text21.translations.push(translation10);
 
 	var attributeRef5 = domainmodels.AttributeRef.create(model);
 	attributeRef5.attribute = model.findAttributeByQualifiedName("MyFirstModule.RecipeSummary.PreparationTimeInMinutes");
@@ -329,34 +362,35 @@
 	clientTemplateParameter5.attributeRef = attributeRef5;
 	clientTemplateParameter5.formattingInfo = formattingInfo5;   // Note: for this property a default value is defined.
 
-	var text19 = texts.Text.create(model);
+	var text22 = texts.Text.create(model);
 
-	var clientTemplate9 = pages.ClientTemplate.create(model);
-	clientTemplate9.template = text18;   // Note: for this property a default value is defined.
-	clientTemplate9.parameters.push(clientTemplateParameter5);
-	clientTemplate9.fallback = text19;   // Note: for this property a default value is defined.
+	var clientTemplate10 = pages.ClientTemplate.create(model);
+	clientTemplate10.template = text21;   // Note: for this property a default value is defined.
+	clientTemplate10.parameters.push(clientTemplateParameter5);
+	clientTemplate10.fallback = text22;   // Note: for this property a default value is defined.
 
 	var recipePreparationTime1 = pages.DynamicText.create(model);
 	recipePreparationTime1.name = "recipePreparationTime";
-	recipePreparationTime1.appearance = appearance18;   // Note: for this property a default value is defined.
-	recipePreparationTime1.content = clientTemplate9;   // Note: for this property a default value is defined.
+	recipePreparationTime1.appearance = appearance19;   // Note: for this property a default value is defined.
+	recipePreparationTime1.content = clientTemplate10;   // Note: for this property a default value is defined.
+	recipePreparationTime1.renderMode = pages.TextRenderMode.Paragraph;
 
-	var microflowSettings6 = pages.MicroflowSettings.create(model);
-	microflowSettings6.microflow = model.findMicroflowByQualifiedName("MyFirstModule.ACT_ShowRecipe");
+	var microflowSettings7 = pages.MicroflowSettings.create(model);
+	microflowSettings7.microflow = model.findMicroflowByQualifiedName("MyFirstModule.ACT_ShowRecipe");
 
-	var microflowClientAction3 = pages.MicroflowClientAction.create(model);
-	microflowClientAction3.microflowSettings = microflowSettings6;   // Note: for this property a default value is defined.
+	var microflowClientAction4 = pages.MicroflowClientAction.create(model);
+	microflowClientAction4.microflowSettings = microflowSettings7;   // Note: for this property a default value is defined.
 
 	var noClientAction3 = pages.NoClientAction.create(model);
 
 	var recipeList1 = pages.ListView.create(model);
 	recipeList1.name = "recipeList";
-	recipeList1.appearance = appearance15;   // Note: for this property a default value is defined.
+	recipeList1.appearance = appearance16;   // Note: for this property a default value is defined.
 	recipeList1.dataSource = microflowSource3;
 	recipeList1.widgets.push(recipeName1);
 	recipeList1.widgets.push(recipeDescription1);
 	recipeList1.widgets.push(recipePreparationTime1);
-	recipeList1.clickAction = microflowClientAction3;   // Note: for this property a default value is defined.
+	recipeList1.clickAction = microflowClientAction4;   // Note: for this property a default value is defined.
 	recipeList1.pullDownAction = noClientAction3;   // Note: for this property a default value is defined.
 
 	var noClientAction4 = pages.NoClientAction.create(model);
@@ -365,23 +399,24 @@
 	recipesPanel1.name = "recipesPanel";
 	recipesPanel1.appearance = appearance12;   // Note: for this property a default value is defined.
 	recipesPanel1.widgets.push(recipesHeader1);
+	recipesPanel1.widgets.push(addRecipeButton1);
 	recipesPanel1.widgets.push(selectedCategory1);
 	recipesPanel1.widgets.push(recipeList1);
 	recipesPanel1.onClickAction = noClientAction4;   // Note: for this property a default value is defined.
 
-	var appearance19 = pages.Appearance.create(model);
+	var appearance20 = pages.Appearance.create(model);
 
 	var layoutGridColumn3 = pages.LayoutGridColumn.create(model);
 	layoutGridColumn3.weight = 9;
 	layoutGridColumn3.widgets.push(recipesPanel1);
-	layoutGridColumn3.appearance = appearance19;   // Note: for this property a default value is defined.
+	layoutGridColumn3.appearance = appearance20;   // Note: for this property a default value is defined.
 
-	var appearance20 = pages.Appearance.create(model);
+	var appearance21 = pages.Appearance.create(model);
 
 	var layoutGridRow2 = pages.LayoutGridRow.create(model);
 	layoutGridRow2.columns.push(layoutGridColumn2);
 	layoutGridRow2.columns.push(layoutGridColumn3);
-	layoutGridRow2.appearance = appearance20;   // Note: for this property a default value is defined.
+	layoutGridRow2.appearance = appearance21;   // Note: for this property a default value is defined.
 
 	var homeGrid1 = pages.LayoutGrid.create(model);
 	homeGrid1.name = "homeGrid";
@@ -389,7 +424,7 @@
 	homeGrid1.rows.push(layoutGridRow1);
 	homeGrid1.rows.push(layoutGridRow2);
 
-	var text20 = texts.Text.create(model);
+	var text23 = texts.Text.create(model);
 
 	var homeContextDataView1 = pages.DataView.create(model);
 	homeContextDataView1.name = "homeContextDataView";
@@ -398,7 +433,7 @@
 	homeContextDataView1.widgets.push(homeGrid1);
 	homeContextDataView1.editability = pages.EditableEnum.Never;
 	homeContextDataView1.showFooter = false;
-	homeContextDataView1.noEntityMessage = text20;   // Note: for this property a default value is defined.
+	homeContextDataView1.noEntityMessage = text23;   // Note: for this property a default value is defined.
 
 	var layoutCallArgument1 = pages.LayoutCallArgument.create(model);
 	// Note: this is an unsupported internal property of the Model SDK which is subject to change.
@@ -409,21 +444,21 @@
 	layoutCall1.layout = model.findLayoutByQualifiedName("Atlas_Core.Atlas_TopBar");
 	layoutCall1.arguments.push(layoutCallArgument1);
 
-	var translation10 = texts.Translation.create(model);
-	translation10.languageCode = "en_US";
-	translation10.text = "Homepage";
+	var translation11 = texts.Translation.create(model);
+	translation11.languageCode = "en_US";
+	translation11.text = "Homepage";
 
-	var text21 = texts.Text.create(model);
-	text21.translations.push(translation10);
+	var text24 = texts.Text.create(model);
+	text24.translations.push(translation11);
 
-	var appearance21 = pages.Appearance.create(model);
+	var appearance22 = pages.Appearance.create(model);
 
 	var home_Web1 = pages.Page.createIn(unit);
 	home_Web1.name = "Home_Web";
 	home_Web1.canvasWidth = 1200;
 	home_Web1.layoutCall = layoutCall1;   // Note: for this property a default value is defined.
-	home_Web1.title = text21;   // Note: for this property a default value is defined.
-	home_Web1.appearance = appearance21;   // Note: for this property a default value is defined.
+	home_Web1.title = text24;   // Note: for this property a default value is defined.
+	home_Web1.appearance = appearance22;   // Note: for this property a default value is defined.
 	home_Web1.allowedRoles.push(model.findModuleRoleByQualifiedName("MyFirstModule.User"));
 	home_Web1.autofocus = pages.Autofocus.DesktopOnly;
 

@@ -21,7 +21,6 @@ import {
 import { MendixPlatformClient } from "mendixplatformsdk";
 
 import { APP_ID, BRANCH, documentsOf, findOwnModule } from "./common";
-import { MEASUREMENT_UNITS } from "./recipes/domain";
 import { LAYOUT } from "./recipes/pages";
 
 const TARGET_BRANCH = process.env.MENDIX_TARGET_BRANCH ?? "recipes-stories-4-5";
@@ -45,7 +44,6 @@ const EXPECTED_DOCUMENTS = [
     "DS_Recipes",
     "DS_RecipeSteps",
     "Home_Web",
-    "MeasurementUnit",
     "CreateRecipe_Request",
     "CreateRecipe_ExportMapping",
     "DS_NewRecipeSteps",
@@ -241,21 +239,8 @@ async function checkDocuments(model: IModel, module: projects.IModule, report: R
     }
 }
 
-/** The units the API accepts, and the chrome the app is supposed to have lost. */
-async function checkEnumerationAndChrome(model: IModel, report: Report): Promise<void> {
-    console.log("\nMeasurement units");
-    const enumerationInterface = model.allEnumerations().find(candidate => candidate.name === "MeasurementUnit");
-    if (!enumerationInterface) {
-        report.fail("enumeration MeasurementUnit exists");
-    } else {
-        const enumeration = await enumerationInterface.load();
-        const names = enumeration.values.map(value => value.name);
-        report.check(
-            names.join(",") === MEASUREMENT_UNITS.join(","),
-            `MeasurementUnit holds exactly ${MEASUREMENT_UNITS.join(", ")} (found ${names.join(", ") || "nothing"})`
-        );
-    }
-
+/** The chrome the app is supposed to have lost. */
+async function checkTopBar(model: IModel, report: Report): Promise<void> {
     console.log("\nTop bar");
     const layoutInterface = model.allLayouts().find(candidate => candidate.qualifiedName === LAYOUT);
     if (!layoutInterface) {
@@ -289,7 +274,7 @@ async function main(): Promise<void> {
 
     const report = new Report();
     await checkDomainModel(module, report);
-    await checkEnumerationAndChrome(model, report);
+    await checkTopBar(model, report);
     await checkDocuments(model, module, report);
     report.summarize();
 }

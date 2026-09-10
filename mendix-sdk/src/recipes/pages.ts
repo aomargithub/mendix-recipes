@@ -18,7 +18,6 @@ import {
     column,
     container as divContainer,
     datePicker,
-    dropDown,
     dynamicText,
     layoutGrid,
     microflowClientAction,
@@ -30,7 +29,7 @@ import {
     textBox,
     withClass
 } from "./builders";
-import { RecipeDomain } from "./domain";
+import { MEASUREMENT_UNITS, RecipeDomain } from "./domain";
 import { RecipeMicroflows } from "./microflows";
 
 export const LAYOUT = "Atlas_Core.Atlas_TopBar";
@@ -428,7 +427,8 @@ export async function buildNewRecipePage(context: RecipePagesContext): Promise<N
         dataSourceParameter: microflows.MicroflowParameterObject,
         addFlow: microflows.Microflow,
         removeFlow: microflows.Microflow,
-        rowWidgets: pages.Widget[]
+        rowWidgets: pages.Widget[],
+        hint?: string
     ): pages.DivContainer => {
         const list = listView(model, `${key}List`, "recipe-form-list");
         list.editable = true;
@@ -442,14 +442,12 @@ export async function buildNewRecipePage(context: RecipePagesContext): Promise<N
         list.widgets.push(
             actionButton(templates, `${key}RemoveButton`, "Remove", microflowClientAction(model, removeFlow))
         );
-        return divContainer(
-            model,
-            `${key}Panel`,
-            "recipes-panel",
-            dynamicText(templates, `${key}Header`, header, [], pages.TextRenderMode.H2),
-            list,
-            actionButton(templates, `${key}AddButton`, addCaption, microflowClientAction(model, addFlow))
-        );
+        const widgets: pages.Widget[] = [
+            dynamicText(templates, `${key}Header`, header, [], pages.TextRenderMode.H2)
+        ];
+        if (hint) widgets.push(dynamicText(templates, `${key}Hint`, hint, [], pages.TextRenderMode.Paragraph));
+        widgets.push(list, actionButton(templates, `${key}AddButton`, addCaption, microflowClientAction(model, addFlow)));
+        return divContainer(model, `${key}Panel`, "recipes-panel", ...widgets);
     };
 
     const listsColumn = column(
@@ -480,9 +478,10 @@ export async function buildNewRecipePage(context: RecipePagesContext): Promise<N
                     "Quantity",
                     attributeOf(domain.newRecipeIngredient, "Quantity")
                 ),
-                dropDown(templates, "ingredientUnitInput", "Unit", attributeOf(domain.newRecipeIngredient, "Unit")),
+                textBox(templates, "ingredientUnitInput", "Unit", attributeOf(domain.newRecipeIngredient, "Unit")),
                 textBox(templates, "ingredientNameInput", "Ingredient", attributeOf(domain.newRecipeIngredient, "Name"))
-            ]
+            ],
+            `Units: ${MEASUREMENT_UNITS.join(", ")}`
         ),
         rowsPanel(
             "recipeCategory",
@@ -524,7 +523,14 @@ export async function buildNewRecipePage(context: RecipePagesContext): Promise<N
                     templates,
                     "saveRecipeButton",
                     "Save recipe",
-                    microflowClientAction(model, flows.actSaveRecipe),
+                    // No widget on this page reads HomeContext, so the client has no default for
+                    // the microflow's second parameter and the page parameter must be named.
+                    microflowClientAction(
+                        model,
+                        flows.actSaveRecipe,
+                        [{ parameterName: "HomeContext", pageParameter: homeContextParameter }],
+                        deferred
+                    ),
                     pages.RenderType.Button
                 ),
                 actionButton(templates, "cancelRecipeButton", "Cancel", pages.ClosePageClientAction.create(model))

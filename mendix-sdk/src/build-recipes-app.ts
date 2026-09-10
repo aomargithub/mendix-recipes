@@ -96,7 +96,10 @@ async function main(): Promise<void> {
         "ACT_RemoveCategory",
         "ACT_SaveRecipe",
         "ACT_NewRecipe",
-        "Recipe_New"
+        "Recipe_New",
+        // An earlier revision backed the ingredient unit with an enumeration. It no longer builds
+        // one, but the branch still carries the document, so it has to be cleaned up.
+        "MeasurementUnit"
     ];
     const removed = removeExisting(model, module, generated);
     if (removed.length > 0) console.log(`Replacing existing documents: ${removed.join(", ")}`);
@@ -108,7 +111,7 @@ async function main(): Promise<void> {
     console.log(chrome.length > 0 ? `Removed from the top bar: ${chrome.join(", ")}` : "Top bar already stripped.");
 
     console.log("Building the domain model...");
-    const domain = await buildDomainModel(module, role, languages);
+    const domain = await buildDomainModel(module, role);
 
     console.log("Building the constant, JSON structures and import mappings...");
     const integration = buildIntegration(module, domain, API_BASE_URL);

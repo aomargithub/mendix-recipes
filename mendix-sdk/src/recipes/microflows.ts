@@ -20,7 +20,7 @@ import {
     services
 } from "mendixmodelsdk";
 import { listType, objectType, text } from "./builders";
-import { RecipeDomain } from "./domain";
+import { DEFAULT_MEASUREMENT_UNIT, RecipeDomain } from "./domain";
 import { RecipeIntegration } from "./integration";
 
 const START_X = 60;
@@ -237,6 +237,14 @@ function attributeOf(entity: domainmodels.Entity, name: string): domainmodels.IA
     const attribute = entity.attributes.find(candidate => candidate.name === name);
     if (!attribute) throw new Error(`Entity ${entity.name} has no attribute ${name}.`);
     return attribute;
+}
+
+/** A new ingredient row starts out valid, so an untouched form is still one the API accepts. */
+function newIngredientDefaults(model: IModel, domain: RecipeDomain): microflows.MemberChange[] {
+    return [
+        setAttribute(model, attributeOf(domain.newRecipeIngredient, "Quantity"), "1"),
+        setAttribute(model, attributeOf(domain.newRecipeIngredient, "Unit"), `'${DEFAULT_MEASUREMENT_UNIT}'`)
+    ];
 }
 
 export interface RecipeMicroflows {
@@ -474,11 +482,13 @@ export function buildMicroflows(context: RecipeMicroflowContext): RecipeMicroflo
         return builder.finish(container, name, datatypes.VoidType.create(model), "", role);
     };
 
-    const oneUnit = setAttribute(model, attributeOf(domain.newRecipeIngredient, "Quantity"), "1");
     const actAddStep = addRow("ACT_AddStep", domain.newRecipeStep, domain.newRecipeToSteps);
-    const actAddIngredient = addRow("ACT_AddIngredient", domain.newRecipeIngredient, domain.newRecipeToIngredients, [
-        oneUnit
-    ]);
+    const actAddIngredient = addRow(
+        "ACT_AddIngredient",
+        domain.newRecipeIngredient,
+        domain.newRecipeToIngredients,
+        newIngredientDefaults(model, domain)
+    );
     const actAddCategory = addRow("ACT_AddCategory", domain.newRecipeCategory, domain.newRecipeToCategories);
     const actRemoveStep = removeRow("ACT_RemoveStep", domain.newRecipeStep, domain.newRecipeToSteps);
     const actRemoveIngredient = removeRow(
@@ -565,9 +575,7 @@ export function buildNewRecipeMicroflow(
         builder.activity(action, 200);
     };
     createRow(domain.newRecipeStep);
-    createRow(domain.newRecipeIngredient, [
-        setAttribute(model, attributeOf(domain.newRecipeIngredient, "Quantity"), "1")
-    ]);
+    createRow(domain.newRecipeIngredient, newIngredientDefaults(model, domain));
     createRow(domain.newRecipeCategory);
 
     const add = microflows.ChangeActionItemType.Add;

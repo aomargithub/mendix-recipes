@@ -92,20 +92,14 @@ export function createJsonStructure(
     return { structure, root };
 }
 
-/** An attribute a value element maps, and the model-side type to declare for it. */
-interface ValueSpec {
-    attribute: domainmodels.IAttribute;
-    /** Overrides the type derived from the JSON element, for an enumeration attribute. */
-    dataType?: datatypes.DataType;
-}
-
 /** One object mapping element: which JSON element it maps, onto which entity, with which values. */
 interface ObjectMappingSpec {
     path: string;
-    entity: domainmodels.IEntity;
+    /** Left out on an element that only exists to reach the one below it. */
+    entity?: domainmodels.IEntity;
     /** Set on nested objects: the association between this object and the enclosing one. */
     association?: domainmodels.IAssociationBase;
-    values: Record<string, domainmodels.IAttribute | ValueSpec>;
+    values?: Record<string, domainmodels.IAttribute>;
     children?: ObjectMappingSpec[];
 }
 
@@ -143,17 +137,16 @@ function buildObjectMappingElement(
     const node = findByPath(root, spec.path);
     const element = factory.object(model);
     copyElementInfo(element, node);
-    element.entity = spec.entity;
+    if (spec.entity) element.entity = spec.entity;
     if (spec.association) element.association = spec.association;
 
-    for (const [path, valueSpec] of Object.entries(spec.values)) {
-        const { attribute, dataType } = "attribute" in valueSpec ? valueSpec : { attribute: valueSpec, dataType: undefined };
+    for (const [path, attribute] of Object.entries(spec.values ?? {})) {
         const valueNode = findByPath(root, path);
         const value = factory.value(model);
         copyElementInfo(value, valueNode);
         const primitiveType = valueNode.primitiveType ?? "String";
         value.xmlPrimitiveType = PRIMITIVE_TYPES[primitiveType];
-        value.type = dataType ?? dataTypeFor(model, primitiveType);
+        value.type = dataTypeFor(model, primitiveType);
         if (valueNode.maxLength !== undefined) value.maxLength = valueNode.maxLength;
         value.attribute = attribute;
         element.children.push(value);
@@ -183,6 +176,23 @@ function createImportMapping(
     return mapping;
 }
 
+/**
+ * Where each object in an export mapping comes from. The default, `Create`, is an import notion
+ * and Studio Pro refuses it outright here: the root object is the microflow's argument, and every
+ * nested one is found by following the association from the object above it. An empty list is not
+ * an error, so a nested element that the schema says may be absent falls back to writing nothing.
+ */
+function applyExportObjectHandling(element: mappings.ObjectMappingElement, isRoot: boolean): void {
+    element.objectHandling = isRoot ? mappings.ObjectHandlingEnum.Parameter : mappings.ObjectHandlingEnum.Find;
+    element.objectHandlingBackup =
+        !isRoot && element.minOccurs === 0
+            ? mappings.ObjectHandlingBackupEnum.Ignore
+            : mappings.ObjectHandlingBackupEnum.Error;
+    for (const child of element.children) {
+        if (child instanceof mappings.ObjectMappingElement) applyExportObjectHandling(child, false);
+    }
+}
+
 function createExportMapping(
     container: projects.IFolderBase,
     name: string,
@@ -195,10 +205,7 @@ function createExportMapping(
     mapping.name = name;
     mapping.jsonStructure = structure;
     const rootElement = buildObjectMappingElement(model, EXPORT_ELEMENTS, root, rootSpec);
-    // The object at the root of an export mapping is the microflow's argument, not something the
-    // mapping looks up or creates, and there is nothing sensible to fall back on if it is missing.
-    rootElement.objectHandling = mappings.ObjectHandlingEnum.Parameter;
-    rootElement.objectHandlingBackup = mappings.ObjectHandlingBackupEnum.Error;
+    applyExportObjectHandling(rootElement, true);
     mapping.rootMappingElements.push(rootElement);
     return mapping;
 }
@@ -308,12 +315,11 @@ export function buildIntegration(
     ]);
 
     // The one mapping that runs the other way: `POST /v1/recipes` takes a `CreateRecipeRequestDto`.
-    // `Unit` is an enumeration, so its value element has to declare the enumeration rather than the
-    // string the JSON element suggests; the runtime then writes the value's name, which is exactly
-    // what `MeasurementUnit.valueOf` expects on the far side.
-    const unitType = datatypes.EnumerationType.create(model);
-    unitType.enumeration = domain.measurementUnit;
-
+    //
+    // Unlike the import mappings above, which may skip a level and let a grandchild attach to the
+    // nearest mapped ancestor, an export mapping element has to map a direct child of the element
+    // above it. Each of the three arrays therefore appears twice: once as an element that maps
+    // nothing, and once as the repeating item inside it, which is the part that stands for a row.
     const createRecipe = createJsonStructure(container, "CreateRecipe_Request", CREATE_RECIPE_SAMPLE);
     const createRecipeMapping = createExportMapping(
         container,
@@ -333,31 +339,48 @@ export function buildIntegration(
             },
             children: [
                 {
-                    path: "(Object)|steps|(Wrapper)",
-                    entity: domain.newRecipeStep,
-                    association: domain.newRecipeToSteps,
-                    values: { "(Object)|steps|(Wrapper)|(Value)": attributeOf(domain.newRecipeStep, "Description") }
-                },
-                {
-                    path: "(Object)|ingredients|(Object)",
-                    entity: domain.newRecipeIngredient,
-                    association: domain.newRecipeToIngredients,
-                    values: {
-                        "(Object)|ingredients|(Object)|name": attributeOf(domain.newRecipeIngredient, "Name"),
-                        "(Object)|ingredients|(Object)|quantity": attributeOf(domain.newRecipeIngredient, "Quantity"),
-                        "(Object)|ingredients|(Object)|unit": {
-                            attribute: attributeOf(domain.newRecipeIngredient, "Unit"),
-                            dataType: unitType
+                    path: "(Object)|steps",
+                    children: [
+                        {
+                            path: "(Object)|steps|(Wrapper)",
+                            entity: domain.newRecipeStep,
+                            association: domain.newRecipeToSteps,
+                            values: {
+                                "(Object)|steps|(Wrapper)|(Value)": attributeOf(domain.newRecipeStep, "Description")
+                            }
                         }
-                    }
+                    ]
                 },
                 {
-                    path: "(Object)|categories|(Wrapper)",
-                    entity: domain.newRecipeCategory,
-                    association: domain.newRecipeToCategories,
-                    values: {
-                        "(Object)|categories|(Wrapper)|(Value)": attributeOf(domain.newRecipeCategory, "Name")
-                    }
+                    path: "(Object)|ingredients",
+                    children: [
+                        {
+                            path: "(Object)|ingredients|(Object)",
+                            entity: domain.newRecipeIngredient,
+                            association: domain.newRecipeToIngredients,
+                            values: {
+                                "(Object)|ingredients|(Object)|name": attributeOf(domain.newRecipeIngredient, "Name"),
+                                "(Object)|ingredients|(Object)|quantity": attributeOf(
+                                    domain.newRecipeIngredient,
+                                    "Quantity"
+                                ),
+                                "(Object)|ingredients|(Object)|unit": attributeOf(domain.newRecipeIngredient, "Unit")
+                            }
+                        }
+                    ]
+                },
+                {
+                    path: "(Object)|categories",
+                    children: [
+                        {
+                            path: "(Object)|categories|(Wrapper)",
+                            entity: domain.newRecipeCategory,
+                            association: domain.newRecipeToCategories,
+                            values: {
+                                "(Object)|categories|(Wrapper)|(Value)": attributeOf(domain.newRecipeCategory, "Name")
+                            }
+                        }
+                    ]
                 }
             ]
         }

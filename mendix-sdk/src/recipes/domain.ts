@@ -6,11 +6,17 @@
  * rather than in kind: it holds no API data, only which category the user picked, which is what
  * lets the recipe list on the home page react to a click in the category list.
  */
-import { IModel, domainmodels, enumerations, projects, security } from "mendixmodelsdk";
-import { moduleOf } from "../common";
-import { text } from "./builders";
+import { IModel, domainmodels, projects, security } from "mendixmodelsdk";
 
-/** Mirrors `com.mendix.recipes.domain.MeasurementUnit`; the API rejects any other value. */
+/**
+ * Mirrors `com.mendix.recipes.domain.MeasurementUnit`; the API rejects any other value.
+ *
+ * Not a Mendix enumeration, which is what would normally back a drop-down here. Two things rule
+ * that out: `PACKAGE` is a reserved word, so no enumeration value may be called that, and the
+ * classic drop-down widget is an error in the React client with no replacement in this app's
+ * Marketplace modules. So `Unit` is plain text, the form lists the units it accepts, and the API
+ * has the final word.
+ */
 export const MEASUREMENT_UNITS = [
     "LITER",
     "CUP",
@@ -24,6 +30,8 @@ export const MEASUREMENT_UNITS = [
     "JAR"
 ];
 
+export const DEFAULT_MEASUREMENT_UNIT = "PIECE";
+
 export interface RecipeDomain {
     homeContext: domainmodels.Entity;
     category: domainmodels.Entity;
@@ -35,7 +43,6 @@ export interface RecipeDomain {
     stepToRecipe: domainmodels.Association;
     ingredientToRecipe: domainmodels.Association;
     categoryToRecipe: domainmodels.Association;
-    measurementUnit: enumerations.Enumeration;
     newRecipe: domainmodels.Entity;
     newRecipeStep: domainmodels.Entity;
     newRecipeIngredient: domainmodels.Entity;
@@ -48,10 +55,6 @@ export interface RecipeDomain {
 type AttributeSpec = {
     name: string;
     type: "String" | "Integer" | "Decimal" | "DateTime";
-} | {
-    name: string;
-    type: "Enumeration";
-    enumeration: enumerations.IEnumeration;
 };
 
 function attributeType(model: IModel, spec: AttributeSpec): domainmodels.AttributeType {
@@ -68,11 +71,6 @@ function attributeType(model: IModel, spec: AttributeSpec): domainmodels.Attribu
             return domainmodels.DecimalAttributeType.create(model);
         case "DateTime":
             return domainmodels.DateTimeAttributeType.create(model);
-        case "Enumeration": {
-            const type = domainmodels.EnumerationAttributeType.create(model);
-            type.enumeration = spec.enumeration;
-            return type;
-        }
     }
 }
 
@@ -116,31 +114,6 @@ function createAssociation(
     association.parentConnection = { x: 0, y: 15 };
     association.childConnection = { x: 100, y: 15 };
     return association;
-}
-
-/**
- * The measurement units the API accepts. An enumeration rather than free text because an export
- * mapping writes the enumeration value's name, so the drop-down cannot produce a unit the API
- * would reject.
- */
-function createMeasurementUnitEnumeration(
-    container: projects.IModule,
-    languages: string[]
-): enumerations.Enumeration {
-    // Deleted here rather than alongside the other documents, because an enumeration cannot go
-    // while an attribute still refers to it, and those attributes only go with their entities.
-    for (const existing of container.model.allEnumerations()) {
-        if (existing.name === "MeasurementUnit" && moduleOf(existing) === container) (existing as any).delete();
-    }
-
-    const enumeration = enumerations.Enumeration.createIn(container);
-    enumeration.name = "MeasurementUnit";
-    for (const unit of MEASUREMENT_UNITS) {
-        const value = enumerations.EnumerationValue.createIn(enumeration);
-        value.name = unit;
-        value.caption = text(container.model, languages, unit.charAt(0) + unit.slice(1).toLowerCase());
-    }
-    return enumeration;
 }
 
 /**
@@ -204,12 +177,10 @@ export const GENERATED_ENTITIES = [
 
 export async function buildDomainModel(
     module: projects.IModule,
-    role: security.IModuleRole,
-    languages: string[]
+    role: security.IModuleRole
 ): Promise<RecipeDomain> {
     const domainModel = await module.domainModel.load();
     removePreviousRun(domainModel, GENERATED_ENTITIES);
-    const measurementUnit = createMeasurementUnitEnumeration(module, languages);
 
     const homeContext = createEntity(domainModel, "HomeContext", { x: 60, y: 60 }, [
         { name: "SelectedCategory", type: "String" }
@@ -258,7 +229,7 @@ export async function buildDomainModel(
     const newRecipeIngredient = createEntity(domainModel, "NewRecipeIngredient", { x: 1420, y: 200 }, [
         { name: "Name", type: "String" },
         { name: "Quantity", type: "Decimal" },
-        { name: "Unit", type: "Enumeration", enumeration: measurementUnit }
+        { name: "Unit", type: "String" }
     ]);
     const newRecipeCategory = createEntity(domainModel, "NewRecipeCategory", { x: 1420, y: 380 }, [
         { name: "Name", type: "String" }
@@ -310,7 +281,6 @@ export async function buildDomainModel(
         stepToRecipe,
         ingredientToRecipe,
         categoryToRecipe,
-        measurementUnit,
         newRecipe,
         newRecipeStep,
         newRecipeIngredient,

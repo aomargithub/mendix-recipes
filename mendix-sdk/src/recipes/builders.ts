@@ -160,17 +160,6 @@ export function datePicker(
     return widget;
 }
 
-export function dropDown(
-    context: TemplateContext,
-    name: string,
-    label: string,
-    attribute: domainmodels.IAttribute
-): pages.DropDown {
-    const widget = bindAttribute(context, pages.DropDown.create(context.model), name, label, attribute);
-    widget.emptyOptionCaption = text(context.model, context.languages);
-    return widget;
-}
-
 export function actionButton(
     context: TemplateContext,
     name: string,
@@ -224,10 +213,29 @@ export function container(model: IModel, name: string, cssClass: string, ...widg
     return result;
 }
 
-/** Calls `microflow` from a widget. The enclosing data context supplies the parameters. */
-export function microflowClientAction(model: IModel, microflow: microflows.IMicroflow): pages.MicroflowClientAction {
+/**
+ * Calls `microflow` from a widget. Parameters normally come from the enclosing data context, but
+ * a page parameter that no widget on the page reads is not part of it, so it has to be named.
+ */
+export function microflowClientAction(
+    model: IModel,
+    microflow: microflows.IMicroflow,
+    pageParameters: { parameterName: string; pageParameter: pages.PageParameter }[] = [],
+    deferred?: DeferredBindings
+): pages.MicroflowClientAction {
     const settingsElement = pages.MicroflowSettings.create(model);
     settingsElement.microflow = microflow;
+    for (const { parameterName, pageParameter } of pageParameters) {
+        const mapping = pages.MicroflowParameterMapping.create(model);
+        (mapping as any).__parameter.updateWithRawValue(`${microflow.qualifiedName}.${parameterName}`);
+        const variable = pages.PageVariable.create(model);
+        mapping.variable = variable;
+        settingsElement.parameterMappings.push(mapping);
+        if (!deferred) throw new Error("Naming a page parameter in a client action needs a deferred binding list.");
+        deferred.push(() => {
+            variable.pageParameter = pageParameter;
+        });
+    }
     const action = pages.MicroflowClientAction.create(model);
     action.microflowSettings = settingsElement;
     return action;
