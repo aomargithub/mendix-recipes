@@ -383,10 +383,11 @@
 	layoutGridRow2.columns.push(layoutGridColumn3);
 	layoutGridRow2.appearance = appearance20;   // Note: for this property a default value is defined.
 
-	var layoutGrid1 = pages.LayoutGrid.create(model);
-	layoutGrid1.appearance = appearance2;   // Note: for this property a default value is defined.
-	layoutGrid1.rows.push(layoutGridRow1);
-	layoutGrid1.rows.push(layoutGridRow2);
+	var homeGrid1 = pages.LayoutGrid.create(model);
+	homeGrid1.name = "homeGrid";
+	homeGrid1.appearance = appearance2;   // Note: for this property a default value is defined.
+	homeGrid1.rows.push(layoutGridRow1);
+	homeGrid1.rows.push(layoutGridRow2);
 
 	var text20 = texts.Text.create(model);
 
@@ -394,7 +395,7 @@
 	homeContextDataView1.name = "homeContextDataView";
 	homeContextDataView1.appearance = appearance1;   // Note: for this property a default value is defined.
 	homeContextDataView1.dataSource = microflowSource1;
-	homeContextDataView1.widgets.push(layoutGrid1);
+	homeContextDataView1.widgets.push(homeGrid1);
 	homeContextDataView1.editability = pages.EditableEnum.Never;
 	homeContextDataView1.showFooter = false;
 	homeContextDataView1.noEntityMessage = text20;   // Note: for this property a default value is defined.
