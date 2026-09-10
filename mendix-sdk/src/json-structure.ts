@@ -162,8 +162,32 @@ function upperCaseFirst(value: string): string {
     return value.length === 0 ? value : value[0].toUpperCase() + value.slice(1);
 }
 
+/**
+ * Studio Pro rejects an element whose custom name is a Java or Mendix reserved word, and reports
+ * it as a character-set problem, which is what makes it confusing: `id` is rejected while `name`
+ * is not. `Mendix.Common.JavaReservedWords` and `MendixReservedWords`, matched case-insensitively.
+ */
+const RESERVED_WORDS = new Set(
+    [
+        "_", "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class",
+        "com", "const", "continue", "default", "do", "double", "else", "enum", "extends", "false",
+        "final", "finally", "float", "for", "if", "goto", "implements", "import", "instanceof", "int",
+        "interface", "long", "native", "new", "null", "package", "private", "protected", "public", "return",
+        "short", "static", "strictfp", "super", "switch", "synchronized", "this", "throw", "throws", "transient",
+        "true", "try", "void", "volatile", "while",
+        "MendixObject", "__filename__", "changedby", "changeddate", "context", "createddate", "currentUser",
+        "empty", "guid", "id", "object", "owner", "submetaobjectname", "type", "con"
+    ].map(word => word.toLowerCase())
+);
+
+/** Port of `NameUtil.ReplaceInvalidChars(name, checkForReservedWords: true)`. */
 function replaceInvalidChars(value: string): string {
-    return value.replace(/[^A-Za-z0-9_]/g, "_");
+    let name = /^\d/.test(value) ? `_${value}` : value;
+    name = name.replace(/[^A-Za-z0-9_]/g, "_");
+    while (RESERVED_WORDS.has(name.toLowerCase())) {
+        name = `_${name}`;
+    }
+    return name;
 }
 
 /** Enough of Humanizer's inflector for the field names this app maps. */
