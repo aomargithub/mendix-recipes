@@ -8,6 +8,7 @@
     "dump-refs": "ts-node src/dump-refs.ts",
     "build": "ts-node src/build-recipes-app.ts",
     "verify": "ts-node src/verify-recipes-app.ts",
+    "check": "tools/check.sh",
     "probe-layout-parameters": "ts-node src/probe-layout-parameters.ts",
     "verify-json-parser": "ts-node src/verify-json-parser.ts",
     "typecheck": "tsc --noEmit"
