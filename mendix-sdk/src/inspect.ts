@@ -1,9 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
 import { JavaScriptSerializer, domainmodels, projects } from "mendixmodelsdk";
-import { documentsOf, findOwnModule, isOwnModule, moduleOf, openWorkingCopy } from "./common";
+import { BRANCH, documentsOf, findOwnModule, isOwnModule, moduleOf, openWorkingCopy } from "./common";
 
-const OUT_DIR = path.join(__dirname, "..", "out");
+const INSPECTED_BRANCH = process.env.MENDIX_BRANCH ?? BRANCH;
+const OUT_DIR = path.join(__dirname, "..", INSPECTED_BRANCH === BRANCH ? "out" : `out-${INSPECTED_BRANCH}`);
 
 function write(relativePath: string, contents: string) {
     const target = path.join(OUT_DIR, relativePath);
@@ -61,7 +62,7 @@ function documentKind(document: { structureTypeName: string }): string {
 async function main() {
     fs.rmSync(OUT_DIR, { recursive: true, force: true });
 
-    console.log("Creating temporary working copy of branch 'main'...");
+    console.log(`Creating temporary working copy of branch '${INSPECTED_BRANCH}'...`);
     const { workingCopy, model } = await openWorkingCopy();
     console.log(`Working copy id: ${workingCopy.workingCopyId}`);
 

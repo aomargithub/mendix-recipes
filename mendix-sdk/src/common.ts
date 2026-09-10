@@ -26,7 +26,7 @@ export async function openWorkingCopy(): Promise<{ workingCopy: OnlineWorkingCop
     }
     const client = new MendixPlatformClient();
     const app = client.getApp(APP_ID);
-    const workingCopy = await app.createTemporaryWorkingCopy(BRANCH);
+    const workingCopy = await app.createTemporaryWorkingCopy(process.env.MENDIX_BRANCH ?? BRANCH);
     const model = await workingCopy.openModel();
     return { workingCopy, model };
 }
