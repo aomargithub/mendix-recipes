@@ -21,6 +21,26 @@ export async function projectLanguages(model: IModel): Promise<string[]> {
     return ["en_US"];
 }
 
+/**
+ * Moves the runtime off the port the recipes API listens on. Without this the app will not start
+ * locally: both default to 8080, and the API is already there.
+ */
+export async function setRuntimePort(model: IModel, port: number): Promise<string[]> {
+    const changed: string[] = [];
+    for (const projectSettings of model.allProjectSettings()) {
+        const loaded = await projectSettings.load();
+        for (const part of loaded.settingsParts) {
+            if (!(part instanceof settings.ConfigurationSettings)) continue;
+            for (const configuration of part.configurations) {
+                if (configuration.runtimePortNumber === port) continue;
+                changed.push(`${configuration.name}: ${configuration.runtimePortNumber} -> ${port}`);
+                configuration.runtimePortNumber = port;
+            }
+        }
+    }
+    return changed;
+}
+
 export function text(model: IModel, languages: string[], value?: string): texts.Text {
     const result = texts.Text.create(model);
     if (value === undefined) return result;

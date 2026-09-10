@@ -8,7 +8,7 @@
 import { IModel, projects, security } from "mendixmodelsdk";
 import { MendixPlatformClient } from "mendixplatformsdk";
 import { APP_ID, BRANCH, findOwnModule } from "./common";
-import { projectLanguages } from "./recipes/builders";
+import { projectLanguages, setRuntimePort } from "./recipes/builders";
 import { buildDomainModel } from "./recipes/domain";
 import { buildIntegration } from "./recipes/integration";
 import { buildMicroflows, buildShowRecipeMicroflow } from "./recipes/microflows";
@@ -17,6 +17,7 @@ import { ensureBranch } from "./team-server-branch";
 
 const TARGET_BRANCH = process.env.MENDIX_TARGET_BRANCH ?? "recipes-stories-4-5";
 const API_BASE_URL = process.env.RECIPES_API_BASE_URL ?? "http://localhost:8080/mendix-recipes";
+const RUNTIME_PORT = Number(process.env.MENDIX_RUNTIME_PORT ?? 8081);
 const COMMIT_MESSAGE =
     "Add the recipes REST integration, the category-filtered recipe list and the recipe detail page";
 
@@ -84,6 +85,9 @@ async function main(): Promise<void> {
     ];
     const removed = removeExisting(model, module, generated);
     if (removed.length > 0) console.log(`Replacing existing documents: ${removed.join(", ")}`);
+
+    const ports = await setRuntimePort(model, RUNTIME_PORT);
+    if (ports.length > 0) console.log(`Runtime port: ${ports.join(", ")}`);
 
     console.log("Building the domain model...");
     const domain = await buildDomainModel(module, role);
