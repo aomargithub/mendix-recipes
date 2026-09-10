@@ -114,11 +114,34 @@ function grantReadAccess(
     entity.accessRules.push(rule);
 }
 
+/**
+ * Drops what an earlier run left behind. Associations go first: deleting an entity that still has
+ * one leaves the association pointing at nothing.
+ */
+function removePreviousRun(domainModel: domainmodels.DomainModel, entityNames: string[]): void {
+    const doomed = new Set(entityNames);
+    for (const association of [...domainModel.associations]) {
+        if (doomed.has(association.parent.name) || doomed.has(association.child.name)) association.delete();
+    }
+    for (const entity of [...domainModel.entities]) {
+        if (doomed.has(entity.name)) entity.delete();
+    }
+}
+
 export async function buildDomainModel(
     module: projects.IModule,
     role: security.IModuleRole
 ): Promise<RecipeDomain> {
     const domainModel = await module.domainModel.load();
+    removePreviousRun(domainModel, [
+        "HomeContext",
+        "Category",
+        "RecipeSummary",
+        "RecipeDetail",
+        "RecipeStep",
+        "RecipeIngredient",
+        "RecipeCategory"
+    ]);
 
     const homeContext = createEntity(domainModel, "HomeContext", { x: 60, y: 60 }, [
         { name: "SelectedCategory", type: "String" }

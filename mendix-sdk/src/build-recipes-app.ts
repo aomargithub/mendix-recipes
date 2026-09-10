@@ -13,6 +13,7 @@ import { buildDomainModel } from "./recipes/domain";
 import { buildIntegration } from "./recipes/integration";
 import { buildMicroflows, buildShowRecipeMicroflow } from "./recipes/microflows";
 import { buildDetailPage, buildHomePage, RecipePagesContext } from "./recipes/pages";
+import { ensureBranch } from "./team-server-branch";
 
 const TARGET_BRANCH = process.env.MENDIX_TARGET_BRANCH ?? "recipes-stories-4-5";
 const API_BASE_URL = process.env.RECIPES_API_BASE_URL ?? "http://localhost:8080/mendix-recipes";
@@ -45,10 +46,16 @@ async function main(): Promise<void> {
     if (!process.env.MENDIX_TOKEN) throw new Error("MENDIX_TOKEN is not set in the environment.");
     if (TARGET_BRANCH === BRANCH) throw new Error(`Refusing to commit to '${BRANCH}'.`);
 
+    console.log(`Branch '${TARGET_BRANCH}' ${ensureBranch(APP_ID, TARGET_BRANCH, BRANCH)}.`);
+
+    // The working copy is based on the target branch, not on `main`, so that re-running the
+    // script builds on top of its own last commit instead of colliding with it. The branch starts
+    // out as a copy of `main`, and every document it produces is deleted and rebuilt below, so
+    // the result is the same either way.
     const client = new MendixPlatformClient();
     const app = client.getApp(APP_ID);
-    console.log(`Creating a temporary working copy from '${BRANCH}'...`);
-    const workingCopy = await app.createTemporaryWorkingCopy(BRANCH);
+    console.log(`Creating a temporary working copy from '${TARGET_BRANCH}'...`);
+    const workingCopy = await app.createTemporaryWorkingCopy(TARGET_BRANCH);
     const model = await workingCopy.openModel();
 
     const module = findOwnModule(model);
@@ -102,7 +109,7 @@ async function main(): Promise<void> {
     await model.flushChanges();
 
     console.log(`Committing to branch '${TARGET_BRANCH}'...`);
-    await workingCopy.commitToRepository(TARGET_BRANCH, { commitMessage: COMMIT_MESSAGE, force: true });
+    await workingCopy.commitToRepository(TARGET_BRANCH, { commitMessage: COMMIT_MESSAGE });
     console.log(`Committed to '${TARGET_BRANCH}'.`);
 }
 
