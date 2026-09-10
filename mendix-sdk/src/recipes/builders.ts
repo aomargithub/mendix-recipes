@@ -94,6 +94,99 @@ export function dynamicText(
     return widget;
 }
 
+/**
+ * Binds an input widget to an attribute of the object it sits in.
+ *
+ * The empty validation and placeholder are not busywork: Studio Pro writes both on every input it
+ * creates, and a widget that leaves them out is not the same widget as one the modeller made.
+ */
+function bindAttribute<T extends pages.AttributeWidget>(
+    context: TemplateContext,
+    widget: T,
+    name: string,
+    label: string,
+    attribute: domainmodels.IAttribute
+): T {
+    widget.name = name;
+    widget.labelTemplate = clientTemplate(context, label);
+    const attributeRef = domainmodels.AttributeRef.create(context.model);
+    attributeRef.attribute = attribute;
+    widget.attributeRef = attributeRef;
+    const validation = pages.WidgetValidation.create(context.model);
+    validation.message = text(context.model, context.languages);
+    widget.validation = validation;
+    return widget;
+}
+
+function withPlaceholder<T extends pages.AttributeWidgetWithPlaceholder>(context: TemplateContext, widget: T): T {
+    widget.placeholderTemplate = clientTemplate(context, "");
+    return widget;
+}
+
+export function textBox(
+    context: TemplateContext,
+    name: string,
+    label: string,
+    attribute: domainmodels.IAttribute
+): pages.TextBox {
+    const widget = withPlaceholder(context, bindAttribute(context, pages.TextBox.create(context.model), name, label, attribute));
+    widget.formattingInfo = pages.FormattingInfo.create(context.model);
+    return widget;
+}
+
+export function textArea(
+    context: TemplateContext,
+    name: string,
+    label: string,
+    attribute: domainmodels.IAttribute
+): pages.TextArea {
+    const widget = withPlaceholder(context, bindAttribute(context, pages.TextArea.create(context.model), name, label, attribute));
+    widget.counterMessage = text(context.model, context.languages);
+    widget.textTooLongMessage = text(context.model, context.languages);
+    return widget;
+}
+
+export function datePicker(
+    context: TemplateContext,
+    name: string,
+    label: string,
+    attribute: domainmodels.IAttribute
+): pages.DatePicker {
+    const widget = withPlaceholder(
+        context,
+        bindAttribute(context, pages.DatePicker.create(context.model), name, label, attribute)
+    );
+    widget.formattingInfo = pages.FormattingInfo.create(context.model);
+    return widget;
+}
+
+export function dropDown(
+    context: TemplateContext,
+    name: string,
+    label: string,
+    attribute: domainmodels.IAttribute
+): pages.DropDown {
+    const widget = bindAttribute(context, pages.DropDown.create(context.model), name, label, attribute);
+    widget.emptyOptionCaption = text(context.model, context.languages);
+    return widget;
+}
+
+export function actionButton(
+    context: TemplateContext,
+    name: string,
+    caption: string,
+    action: pages.ClientAction,
+    renderType: pages.RenderType = pages.RenderType.Link
+): pages.ActionButton {
+    const button = pages.ActionButton.create(context.model);
+    button.name = name;
+    button.caption = clientTemplate(context, caption);
+    button.tooltip = text(context.model, context.languages);
+    button.renderType = renderType;
+    button.action = action;
+    return button;
+}
+
 /** A widget's CSS classes live on its appearance; the `class` property itself is long gone. */
 export function withClass<T extends pages.Widget>(widget: T, cssClass: string): T {
     const appearance = pages.Appearance.create(widget.model);

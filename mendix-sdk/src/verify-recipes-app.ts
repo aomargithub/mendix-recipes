@@ -21,6 +21,8 @@ import {
 import { MendixPlatformClient } from "mendixplatformsdk";
 
 import { APP_ID, BRANCH, documentsOf, findOwnModule } from "./common";
+import { MEASUREMENT_UNITS } from "./recipes/domain";
+import { LAYOUT } from "./recipes/pages";
 
 const TARGET_BRANCH = process.env.MENDIX_TARGET_BRANCH ?? "recipes-stories-4-5";
 
@@ -42,7 +44,22 @@ const EXPECTED_DOCUMENTS = [
     "DS_RecipeIngredients",
     "DS_Recipes",
     "DS_RecipeSteps",
-    "Home_Web"
+    "Home_Web",
+    "MeasurementUnit",
+    "CreateRecipe_Request",
+    "CreateRecipe_ExportMapping",
+    "DS_NewRecipeSteps",
+    "DS_NewRecipeIngredients",
+    "DS_NewRecipeCategories",
+    "ACT_AddStep",
+    "ACT_AddIngredient",
+    "ACT_AddCategory",
+    "ACT_RemoveStep",
+    "ACT_RemoveIngredient",
+    "ACT_RemoveCategory",
+    "ACT_SaveRecipe",
+    "ACT_NewRecipe",
+    "Recipe_New"
 ];
 
 const EXPECTED_ENTITIES: Record<string, string[]> = {
@@ -60,10 +77,21 @@ const EXPECTED_ENTITIES: Record<string, string[]> = {
     ],
     RecipeStep: ["Description"],
     RecipeIngredient: ["Name", "Quantity", "Unit"],
-    RecipeCategory: ["Name"]
+    RecipeCategory: ["Name"],
+    NewRecipe: ["Name", "Description", "Author", "PostedAt", "PostedTo", "PreparationTimeInMinutes"],
+    NewRecipeStep: ["Description"],
+    NewRecipeIngredient: ["Name", "Quantity", "Unit"],
+    NewRecipeCategory: ["Name"]
 };
 
-const EXPECTED_ASSOCIATIONS = ["RecipeStep_RecipeDetail", "RecipeIngredient_RecipeDetail", "RecipeCategory_RecipeDetail"];
+const EXPECTED_ASSOCIATIONS = [
+    "RecipeStep_RecipeDetail",
+    "RecipeIngredient_RecipeDetail",
+    "RecipeCategory_RecipeDetail",
+    "NewRecipe_NewRecipeStep",
+    "NewRecipe_NewRecipeIngredient",
+    "NewRecipe_NewRecipeCategory"
+];
 
 class Report {
     private readonly failures: string[] = [];
@@ -213,6 +241,39 @@ async function checkDocuments(model: IModel, module: projects.IModule, report: R
     }
 }
 
+/** The units the API accepts, and the chrome the app is supposed to have lost. */
+async function checkEnumerationAndChrome(model: IModel, report: Report): Promise<void> {
+    console.log("\nMeasurement units");
+    const enumerationInterface = model.allEnumerations().find(candidate => candidate.name === "MeasurementUnit");
+    if (!enumerationInterface) {
+        report.fail("enumeration MeasurementUnit exists");
+    } else {
+        const enumeration = await enumerationInterface.load();
+        const names = enumeration.values.map(value => value.name);
+        report.check(
+            names.join(",") === MEASUREMENT_UNITS.join(","),
+            `MeasurementUnit holds exactly ${MEASUREMENT_UNITS.join(", ")} (found ${names.join(", ") || "nothing"})`
+        );
+    }
+
+    console.log("\nTop bar");
+    const layoutInterface = model.allLayouts().find(candidate => candidate.qualifiedName === LAYOUT);
+    if (!layoutInterface) {
+        report.fail(`layout ${LAYOUT} exists`);
+        return;
+    }
+    const layout = await layoutInterface.load();
+    for (const snippet of ["Atlas_Core.FeedbackWidget", "Atlas_Core.LanguageSelectorWidget"]) {
+        const present = contains(
+            layout,
+            structure =>
+                structure instanceof pages.SnippetCallWidget &&
+                structure.snippetCall?.snippet?.qualifiedName === snippet
+        );
+        report.check(!present, `${LAYOUT} no longer calls ${snippet}`);
+    }
+}
+
 async function main(): Promise<void> {
     if (!process.env.MENDIX_TOKEN) throw new Error("MENDIX_TOKEN is not set in the environment.");
     if (TARGET_BRANCH === BRANCH) throw new Error(`Refusing to verify '${BRANCH}' as the generated branch.`);
@@ -228,6 +289,7 @@ async function main(): Promise<void> {
 
     const report = new Report();
     await checkDomainModel(module, report);
+    await checkEnumerationAndChrome(model, report);
     await checkDocuments(model, module, report);
     report.summarize();
 }

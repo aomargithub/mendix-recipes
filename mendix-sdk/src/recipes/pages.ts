@@ -14,9 +14,11 @@ import { IModel, domainmodels, microflows, pages, projects, security } from "men
 import {
     DeferredBindings,
     TemplateContext,
-    clientTemplate,
+    actionButton,
     column,
     container as divContainer,
+    datePicker,
+    dropDown,
     dynamicText,
     layoutGrid,
     microflowClientAction,
@@ -24,12 +26,14 @@ import {
     objectType,
     row,
     text,
+    textArea,
+    textBox,
     withClass
 } from "./builders";
 import { RecipeDomain } from "./domain";
 import { RecipeMicroflows } from "./microflows";
 
-const LAYOUT = "Atlas_Core.Atlas_TopBar";
+export const LAYOUT = "Atlas_Core.Atlas_TopBar";
 const LAYOUT_CONTENT_PLACEHOLDER = "Main";
 
 function attributeOf(entity: domainmodels.Entity, name: string): domainmodels.IAttribute {
@@ -57,14 +61,21 @@ function layoutCall(model: IModel, content: pages.Widget): pages.LayoutCall {
     return call;
 }
 
-/** A read-only data view: no control bar, no footer, nothing editable. */
+/**
+ * A data view without a footer: nothing on these screens is persisted, so the save and cancel
+ * buttons Mendix puts there would commit an object that has no table to go to.
+ */
+function dataView(model: IModel, name: string, cssClass: string, editability: pages.EditableEnum): pages.DataView {
+    const widget = pages.DataView.create(model);
+    widget.name = name;
+    withClass(widget, cssClass);
+    widget.editability = editability;
+    widget.showFooter = false;
+    return widget;
+}
+
 function readOnlyDataView(model: IModel, name: string, cssClass: string): pages.DataView {
-    const dataView = pages.DataView.create(model);
-    dataView.name = name;
-    withClass(dataView, cssClass);
-    dataView.editability = pages.EditableEnum.Never;
-    dataView.showFooter = false;
-    return dataView;
+    return dataView(model, name, cssClass, pages.EditableEnum.Never);
 }
 
 function listView(model: IModel, name: string, cssClass: string): pages.ListView {
@@ -91,7 +102,8 @@ export interface RecipePagesContext {
 export async function buildHomePage(
     context: RecipePagesContext,
     home: pages.Page,
-    showRecipe: microflows.IMicroflow
+    showRecipe: microflows.IMicroflow,
+    newRecipe: microflows.IMicroflow
 ): Promise<void> {
     const { model, languages, domain, flows } = context;
     const templates: TemplateContext = { model, languages };
@@ -108,12 +120,12 @@ export async function buildHomePage(
         dynamicText(templates, "categoryName", "{1}", [attributeOf(domain.category, "Name")])
     );
 
-    const showAll = pages.ActionButton.create(model);
-    showAll.name = "showAllRecipesButton";
-    showAll.caption = clientTemplate(templates, "All recipes");
-    showAll.tooltip = text(model, languages);
-    showAll.renderType = pages.RenderType.Link;
-    showAll.action = microflowClientAction(model, flows.actShowAllRecipes);
+    const showAll = actionButton(
+        templates,
+        "showAllRecipesButton",
+        "All recipes",
+        microflowClientAction(model, flows.actShowAllRecipes)
+    );
 
     const leftColumn = column(
         model,
@@ -137,14 +149,24 @@ export async function buildHomePage(
         deferred
     );
     recipeList.clickAction = microflowClientAction(model, showRecipe);
+    // Paragraphs, not plain text: a text widget in `Text` mode renders as a span, so the servings
+    // and the preparation time ran into each other on one line with nothing between them.
     recipeList.widgets.push(
         dynamicText(templates, "recipeName", "{1}", [attributeOf(domain.recipeSummary, "Name")], pages.TextRenderMode.H3),
-        dynamicText(templates, "recipeDescription", "{1}", [
-            attributeOf(domain.recipeSummary, "DescriptionPrefix")
-        ]),
-        dynamicText(templates, "recipePreparationTime", "{1} minutes", [
-            attributeOf(domain.recipeSummary, "PreparationTimeInMinutes")
-        ])
+        dynamicText(
+            templates,
+            "recipeDescription",
+            "{1}",
+            [attributeOf(domain.recipeSummary, "DescriptionPrefix")],
+            pages.TextRenderMode.Paragraph
+        ),
+        dynamicText(
+            templates,
+            "recipePreparationTime",
+            "Ready in {1} minutes",
+            [attributeOf(domain.recipeSummary, "PreparationTimeInMinutes")],
+            pages.TextRenderMode.Paragraph
+        )
     );
 
     const rightColumn = column(
@@ -161,9 +183,14 @@ export async function buildHomePage(
                 [],
                 pages.TextRenderMode.H2
             ),
-            dynamicText(templates, "selectedCategory", "Filtered by: {1}", [
-                attributeOf(domain.homeContext, "SelectedCategory")
-            ]),
+            actionButton(templates, "addRecipeButton", "Add a recipe", microflowClientAction(model, newRecipe)),
+            dynamicText(
+                templates,
+                "selectedCategory",
+                "Filtered by: {1}",
+                [attributeOf(domain.homeContext, "SelectedCategory")],
+                pages.TextRenderMode.Paragraph
+            ),
             recipeList
         )
     );
@@ -250,12 +277,11 @@ export async function buildDetailPage(
         [dynamicText(templates, "recipeCategoryName", "{1}", [attributeOf(domain.recipeCategory, "Name")])]
     );
 
-    const back = pages.ActionButton.create(model);
-    back.name = "backButton";
-    back.caption = clientTemplate(templates, "Back");
-    back.tooltip = text(model, languages);
-    back.renderType = pages.RenderType.Link;
-    back.action = pages.ClosePageClientAction.create(model);
+    const back = actionButton(templates, "backButton", "Back", pages.ClosePageClientAction.create(model));
+
+    // As on the home page, each of these is a paragraph so they stack instead of running together.
+    const paragraph = (name: string, template: string, attributes: domainmodels.IAttribute[]) =>
+        dynamicText(templates, name, template, attributes, pages.TextRenderMode.Paragraph);
 
     const grid = layoutGrid(
         model,
@@ -267,19 +293,15 @@ export async function buildDetailPage(
                 model,
                 -1,
                 dynamicText(templates, "detailName", "{1}", [attributeOf(domain.recipeDetail, "Name")], pages.TextRenderMode.H1),
-                dynamicText(templates, "detailDescription", "{1}", [
-                    attributeOf(domain.recipeDetail, "Description")
-                ]),
-                dynamicText(templates, "detailPreparationTime", "Preparation time: {1} minutes", [
+                paragraph("detailDescription", "{1}", [attributeOf(domain.recipeDetail, "Description")]),
+                paragraph("detailPreparationTime", "Preparation time: {1} minutes", [
                     attributeOf(domain.recipeDetail, "PreparationTimeInMinutes")
                 ]),
-                dynamicText(templates, "detailAuthor", "By {1}, posted to {2}", [
+                paragraph("detailAuthor", "By {1}, posted to {2}", [
                     attributeOf(domain.recipeDetail, "Author"),
                     attributeOf(domain.recipeDetail, "PostedTo")
                 ]),
-                dynamicText(templates, "detailPostedAt", "Posted at {1}", [
-                    attributeOf(domain.recipeDetail, "PostedAt")
-                ])
+                paragraph("detailPostedAt", "Posted at {1}", [attributeOf(domain.recipeDetail, "PostedAt")])
             )
         ),
         row(
@@ -328,4 +350,191 @@ export async function buildDetailPage(
     deferred.forEach(bind => bind());
 
     return { page, parameter: pageParameter };
+}
+
+export interface NewRecipePage {
+    page: pages.Page;
+    newRecipeParameter: pages.PageParameter;
+    homeContextParameter: pages.PageParameter;
+}
+
+/**
+ * The add-recipe form, which posts a `CreateRecipeRequestDto` back to the API.
+ *
+ * Steps, ingredients and categories are lists the API insists on, so each gets an editable list
+ * view with its own add and remove links rather than a text field the user has to guess the
+ * separator for. Every row is a non-persistable object hanging off the recipe being edited; none
+ * of it is committed, and closing the form throws the lot away.
+ */
+export async function buildNewRecipePage(context: RecipePagesContext): Promise<NewRecipePage> {
+    const { model, module, languages, domain, flows, role } = context;
+    const templates: TemplateContext = { model, languages };
+    const deferred: DeferredBindings = [];
+
+    const page = pages.Page.createIn(module);
+    page.name = "Recipe_New";
+    page.title = text(model, languages, "Add a recipe");
+    page.canvasWidth = 1200;
+    page.allowedRoles.push(role);
+
+    const newRecipeParameter = pages.PageParameter.createIn(page);
+    newRecipeParameter.name = "NewRecipe";
+    newRecipeParameter.parameterType = objectType(model, domain.newRecipe);
+
+    // Carried along only so that saving can refresh the recipe list the form was opened from.
+    const homeContextParameter = pages.PageParameter.createIn(page);
+    homeContextParameter.name = "HomeContext";
+    homeContextParameter.parameterType = objectType(model, domain.homeContext);
+
+    const pageVariable = pages.PageVariable.create(model);
+    deferred.push(() => {
+        pageVariable.pageParameter = newRecipeParameter;
+    });
+    const source = pages.DataViewSource.create(model);
+    const entityRef = domainmodels.DirectEntityRef.create(model);
+    entityRef.entity = domain.newRecipe;
+    source.entityRef = entityRef;
+    source.sourceVariable = pageVariable;
+
+    const form = dataView(model, "newRecipeDataView", "recipe-form", pages.EditableEnum.Always);
+    form.dataSource = source;
+
+    const field = (name: string, label: string, attribute: string) =>
+        textBox(templates, name, label, attributeOf(domain.newRecipe, attribute));
+
+    const detailsColumn = column(
+        model,
+        6,
+        divContainer(
+            model,
+            "recipeFieldsPanel",
+            "recipes-panel",
+            dynamicText(templates, "recipeFieldsHeader", "Recipe", [], pages.TextRenderMode.H2),
+            field("nameInput", "Name", "Name"),
+            textArea(templates, "descriptionInput", "Description", attributeOf(domain.newRecipe, "Description")),
+            field("preparationTimeInput", "Preparation time (minutes)", "PreparationTimeInMinutes"),
+            field("authorInput", "Author", "Author"),
+            field("postedToInput", "Posted to", "PostedTo"),
+            datePicker(templates, "postedAtInput", "Posted at", attributeOf(domain.newRecipe, "PostedAt"))
+        )
+    );
+
+    /** One of the three repeating sections, with a row template and add and remove links. */
+    const rowsPanel = (
+        key: string,
+        header: string,
+        addCaption: string,
+        dataSourceFlow: microflows.Microflow,
+        dataSourceParameter: microflows.MicroflowParameterObject,
+        addFlow: microflows.Microflow,
+        removeFlow: microflows.Microflow,
+        rowWidgets: pages.Widget[]
+    ): pages.DivContainer => {
+        const list = listView(model, `${key}List`, "recipe-form-list");
+        list.editable = true;
+        list.dataSource = microflowSource(
+            model,
+            dataSourceFlow,
+            [{ parameterName: dataSourceParameter.name, widget: form, pageParameter: newRecipeParameter }],
+            deferred
+        );
+        rowWidgets.forEach(widget => list.widgets.push(widget));
+        list.widgets.push(
+            actionButton(templates, `${key}RemoveButton`, "Remove", microflowClientAction(model, removeFlow))
+        );
+        return divContainer(
+            model,
+            `${key}Panel`,
+            "recipes-panel",
+            dynamicText(templates, `${key}Header`, header, [], pages.TextRenderMode.H2),
+            list,
+            actionButton(templates, `${key}AddButton`, addCaption, microflowClientAction(model, addFlow))
+        );
+    };
+
+    const listsColumn = column(
+        model,
+        6,
+        rowsPanel(
+            "step",
+            "Steps",
+            "Add a step",
+            flows.dsNewRecipeSteps,
+            flows.dsNewRecipeStepsParameter,
+            flows.actAddStep,
+            flows.actRemoveStep,
+            [textBox(templates, "stepDescriptionInput", "Step", attributeOf(domain.newRecipeStep, "Description"))]
+        ),
+        rowsPanel(
+            "ingredient",
+            "Ingredients",
+            "Add an ingredient",
+            flows.dsNewRecipeIngredients,
+            flows.dsNewRecipeIngredientsParameter,
+            flows.actAddIngredient,
+            flows.actRemoveIngredient,
+            [
+                textBox(
+                    templates,
+                    "ingredientQuantityInput",
+                    "Quantity",
+                    attributeOf(domain.newRecipeIngredient, "Quantity")
+                ),
+                dropDown(templates, "ingredientUnitInput", "Unit", attributeOf(domain.newRecipeIngredient, "Unit")),
+                textBox(templates, "ingredientNameInput", "Ingredient", attributeOf(domain.newRecipeIngredient, "Name"))
+            ]
+        ),
+        rowsPanel(
+            "recipeCategory",
+            "Categories",
+            "Add a category",
+            flows.dsNewRecipeCategories,
+            flows.dsNewRecipeCategoriesParameter,
+            flows.actAddCategory,
+            flows.actRemoveCategory,
+            [
+                textBox(
+                    templates,
+                    "recipeCategoryNameInput",
+                    "Category",
+                    attributeOf(domain.newRecipeCategory, "Name")
+                )
+            ]
+        )
+    );
+
+    const grid = layoutGrid(
+        model,
+        "newRecipeGrid",
+        row(
+            model,
+            column(
+                model,
+                -1,
+                dynamicText(templates, "formHeader", "Add a recipe", [], pages.TextRenderMode.H1)
+            )
+        ),
+        row(model, detailsColumn, listsColumn),
+        row(
+            model,
+            column(
+                model,
+                -1,
+                actionButton(
+                    templates,
+                    "saveRecipeButton",
+                    "Save recipe",
+                    microflowClientAction(model, flows.actSaveRecipe),
+                    pages.RenderType.Button
+                ),
+                actionButton(templates, "cancelRecipeButton", "Cancel", pages.ClosePageClientAction.create(model))
+            )
+        )
+    );
+    form.widgets.push(grid);
+
+    page.layoutCall = layoutCall(model, form);
+    deferred.forEach(bind => bind());
+
+    return { page, newRecipeParameter, homeContextParameter };
 }

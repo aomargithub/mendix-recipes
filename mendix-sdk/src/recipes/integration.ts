@@ -15,6 +15,7 @@ import {
     constants,
     datatypes,
     domainmodels,
+    exportmappings,
     importmappings,
     jsonstructures,
     mappings,
@@ -22,7 +23,7 @@ import {
     xmlschemas
 } from "mendixmodelsdk";
 import { JsonNode, PrimitiveTypeName, beautify, findByPath, parseJsonSnippet, walk } from "../json-structure";
-import { CATEGORIES_SAMPLE, RECIPES_SAMPLE, RECIPE_SAMPLE } from "./api-samples";
+import { CATEGORIES_SAMPLE, CREATE_RECIPE_SAMPLE, RECIPES_SAMPLE, RECIPE_SAMPLE } from "./api-samples";
 import { RecipeDomain } from "./domain";
 
 const ELEMENT_TYPES: Record<JsonNode["elementType"], mappings.ElementType> = {
@@ -91,15 +92,38 @@ export function createJsonStructure(
     return { structure, root };
 }
 
+/** An attribute a value element maps, and the model-side type to declare for it. */
+interface ValueSpec {
+    attribute: domainmodels.IAttribute;
+    /** Overrides the type derived from the JSON element, for an enumeration attribute. */
+    dataType?: datatypes.DataType;
+}
+
 /** One object mapping element: which JSON element it maps, onto which entity, with which values. */
 interface ObjectMappingSpec {
     path: string;
     entity: domainmodels.IEntity;
-    /** Set on nested objects to link the created object to the object of the enclosing element. */
+    /** Set on nested objects: the association between this object and the enclosing one. */
     association?: domainmodels.IAssociationBase;
-    values: Record<string, domainmodels.IAttribute>;
+    values: Record<string, domainmodels.IAttribute | ValueSpec>;
     children?: ObjectMappingSpec[];
 }
+
+/** Import and export mapping elements differ only in their concrete classes. */
+interface MappingElementFactory {
+    object(model: IModel): mappings.ObjectMappingElement;
+    value(model: IModel): mappings.ValueMappingElement;
+}
+
+const IMPORT_ELEMENTS: MappingElementFactory = {
+    object: model => importmappings.ImportObjectMappingElement.create(model),
+    value: model => importmappings.ImportValueMappingElement.create(model)
+};
+
+const EXPORT_ELEMENTS: MappingElementFactory = {
+    object: model => exportmappings.ExportObjectMappingElement.create(model),
+    value: model => exportmappings.ExportValueMappingElement.create(model)
+};
 
 function copyElementInfo(target: mappings.MappingElement, node: JsonNode): void {
     target.elementType = ELEMENT_TYPES[node.elementType];
@@ -112,29 +136,31 @@ function copyElementInfo(target: mappings.MappingElement, node: JsonNode): void 
 
 function buildObjectMappingElement(
     model: IModel,
+    factory: MappingElementFactory,
     root: JsonNode,
     spec: ObjectMappingSpec
-): importmappings.ImportObjectMappingElement {
+): mappings.ObjectMappingElement {
     const node = findByPath(root, spec.path);
-    const element = importmappings.ImportObjectMappingElement.create(model);
+    const element = factory.object(model);
     copyElementInfo(element, node);
     element.entity = spec.entity;
     if (spec.association) element.association = spec.association;
 
-    for (const [path, attribute] of Object.entries(spec.values)) {
+    for (const [path, valueSpec] of Object.entries(spec.values)) {
+        const { attribute, dataType } = "attribute" in valueSpec ? valueSpec : { attribute: valueSpec, dataType: undefined };
         const valueNode = findByPath(root, path);
-        const value = importmappings.ImportValueMappingElement.create(model);
+        const value = factory.value(model);
         copyElementInfo(value, valueNode);
         const primitiveType = valueNode.primitiveType ?? "String";
         value.xmlPrimitiveType = PRIMITIVE_TYPES[primitiveType];
-        value.type = dataTypeFor(model, primitiveType);
+        value.type = dataType ?? dataTypeFor(model, primitiveType);
         if (valueNode.maxLength !== undefined) value.maxLength = valueNode.maxLength;
         value.attribute = attribute;
         element.children.push(value);
     }
 
     for (const child of spec.children ?? []) {
-        element.children.push(buildObjectMappingElement(model, root, child));
+        element.children.push(buildObjectMappingElement(model, factory, root, child));
     }
     return element;
 }
@@ -152,8 +178,28 @@ function createImportMapping(
     mapping.jsonStructure = structure;
     mapping.parameterType = datatypes.UnknownType.create(model);
     for (const spec of rootSpecs) {
-        mapping.rootMappingElements.push(buildObjectMappingElement(model, root, spec));
+        mapping.rootMappingElements.push(buildObjectMappingElement(model, IMPORT_ELEMENTS, root, spec));
     }
+    return mapping;
+}
+
+function createExportMapping(
+    container: projects.IFolderBase,
+    name: string,
+    structure: jsonstructures.JsonStructure,
+    root: JsonNode,
+    rootSpec: ObjectMappingSpec
+): exportmappings.ExportMapping {
+    const model = container.model;
+    const mapping = exportmappings.ExportMapping.createIn(container);
+    mapping.name = name;
+    mapping.jsonStructure = structure;
+    const rootElement = buildObjectMappingElement(model, EXPORT_ELEMENTS, root, rootSpec);
+    // The object at the root of an export mapping is the microflow's argument, not something the
+    // mapping looks up or creates, and there is nothing sensible to fall back on if it is missing.
+    rootElement.objectHandling = mappings.ObjectHandlingEnum.Parameter;
+    rootElement.objectHandlingBackup = mappings.ObjectHandlingBackupEnum.Error;
+    mapping.rootMappingElements.push(rootElement);
     return mapping;
 }
 
@@ -162,6 +208,7 @@ export interface RecipeIntegration {
     categoriesMapping: importmappings.ImportMapping;
     recipesMapping: importmappings.ImportMapping;
     recipeMapping: importmappings.ImportMapping;
+    createRecipeMapping: exportmappings.ExportMapping;
 }
 
 function attributeOf(entity: domainmodels.Entity, name: string): domainmodels.IAttribute {
@@ -260,7 +307,63 @@ export function buildIntegration(
         }
     ]);
 
-    return { baseUrl, categoriesMapping, recipesMapping, recipeMapping };
+    // The one mapping that runs the other way: `POST /v1/recipes` takes a `CreateRecipeRequestDto`.
+    // `Unit` is an enumeration, so its value element has to declare the enumeration rather than the
+    // string the JSON element suggests; the runtime then writes the value's name, which is exactly
+    // what `MeasurementUnit.valueOf` expects on the far side.
+    const unitType = datatypes.EnumerationType.create(model);
+    unitType.enumeration = domain.measurementUnit;
+
+    const createRecipe = createJsonStructure(container, "CreateRecipe_Request", CREATE_RECIPE_SAMPLE);
+    const createRecipeMapping = createExportMapping(
+        container,
+        "CreateRecipe_ExportMapping",
+        createRecipe.structure,
+        createRecipe.root,
+        {
+            path: "(Object)",
+            entity: domain.newRecipe,
+            values: {
+                "(Object)|name": attributeOf(domain.newRecipe, "Name"),
+                "(Object)|description": attributeOf(domain.newRecipe, "Description"),
+                "(Object)|author": attributeOf(domain.newRecipe, "Author"),
+                "(Object)|postedAt": attributeOf(domain.newRecipe, "PostedAt"),
+                "(Object)|postedTo": attributeOf(domain.newRecipe, "PostedTo"),
+                "(Object)|preparationTimeInMinutes": attributeOf(domain.newRecipe, "PreparationTimeInMinutes")
+            },
+            children: [
+                {
+                    path: "(Object)|steps|(Wrapper)",
+                    entity: domain.newRecipeStep,
+                    association: domain.newRecipeToSteps,
+                    values: { "(Object)|steps|(Wrapper)|(Value)": attributeOf(domain.newRecipeStep, "Description") }
+                },
+                {
+                    path: "(Object)|ingredients|(Object)",
+                    entity: domain.newRecipeIngredient,
+                    association: domain.newRecipeToIngredients,
+                    values: {
+                        "(Object)|ingredients|(Object)|name": attributeOf(domain.newRecipeIngredient, "Name"),
+                        "(Object)|ingredients|(Object)|quantity": attributeOf(domain.newRecipeIngredient, "Quantity"),
+                        "(Object)|ingredients|(Object)|unit": {
+                            attribute: attributeOf(domain.newRecipeIngredient, "Unit"),
+                            dataType: unitType
+                        }
+                    }
+                },
+                {
+                    path: "(Object)|categories|(Wrapper)",
+                    entity: domain.newRecipeCategory,
+                    association: domain.newRecipeToCategories,
+                    values: {
+                        "(Object)|categories|(Wrapper)|(Value)": attributeOf(domain.newRecipeCategory, "Name")
+                    }
+                }
+            ]
+        }
+    );
+
+    return { baseUrl, categoriesMapping, recipesMapping, recipeMapping, createRecipeMapping };
 }
 
 /** Every path of a derived tree, for the build log. */

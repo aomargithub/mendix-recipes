@@ -11,8 +11,9 @@ import { APP_ID, BRANCH, findOwnModule } from "./common";
 import { projectLanguages, setRuntimePort } from "./recipes/builders";
 import { buildDomainModel } from "./recipes/domain";
 import { buildIntegration } from "./recipes/integration";
-import { buildMicroflows, buildShowRecipeMicroflow } from "./recipes/microflows";
-import { buildDetailPage, buildHomePage, RecipePagesContext } from "./recipes/pages";
+import { removeTopBarChrome } from "./recipes/layout";
+import { buildMicroflows, buildNewRecipeMicroflow, buildShowRecipeMicroflow } from "./recipes/microflows";
+import { buildDetailPage, buildHomePage, buildNewRecipePage, LAYOUT, RecipePagesContext } from "./recipes/pages";
 import { ensureBranch } from "./team-server-branch";
 
 const TARGET_BRANCH = process.env.MENDIX_TARGET_BRANCH ?? "recipes-stories-4-5";
@@ -81,7 +82,21 @@ async function main(): Promise<void> {
         "ACT_SelectCategory",
         "ACT_ShowAllRecipes",
         "ACT_ShowRecipe",
-        "Recipe_Detail"
+        "Recipe_Detail",
+        "CreateRecipe_Request",
+        "CreateRecipe_ExportMapping",
+        "DS_NewRecipeSteps",
+        "DS_NewRecipeIngredients",
+        "DS_NewRecipeCategories",
+        "ACT_AddStep",
+        "ACT_AddIngredient",
+        "ACT_AddCategory",
+        "ACT_RemoveStep",
+        "ACT_RemoveIngredient",
+        "ACT_RemoveCategory",
+        "ACT_SaveRecipe",
+        "ACT_NewRecipe",
+        "Recipe_New"
     ];
     const removed = removeExisting(model, module, generated);
     if (removed.length > 0) console.log(`Replacing existing documents: ${removed.join(", ")}`);
@@ -89,8 +104,11 @@ async function main(): Promise<void> {
     const ports = await setRuntimePort(model, RUNTIME_PORT);
     if (ports.length > 0) console.log(`Runtime port: ${ports.join(", ")}`);
 
+    const chrome = await removeTopBarChrome(model, LAYOUT);
+    console.log(chrome.length > 0 ? `Removed from the top bar: ${chrome.join(", ")}` : "Top bar already stripped.");
+
     console.log("Building the domain model...");
-    const domain = await buildDomainModel(module, role);
+    const domain = await buildDomainModel(module, role, languages);
 
     console.log("Building the constant, JSON structures and import mappings...");
     const integration = buildIntegration(module, domain, API_BASE_URL);
@@ -104,10 +122,18 @@ async function main(): Promise<void> {
     const detail = await buildDetailPage(pageContext);
     const showRecipe = buildShowRecipeMicroflow(microflowContext, detail.page, detail.parameter);
 
+    const form = await buildNewRecipePage(pageContext);
+    const newRecipe = buildNewRecipeMicroflow(
+        microflowContext,
+        form.page,
+        form.newRecipeParameter,
+        form.homeContextParameter
+    );
+
     const home = model.allPages().find(page => page.qualifiedName === `${module.name}.Home_Web`);
     if (!home) throw new Error(`Page ${module.name}.Home_Web not found.`);
     const loadedHome = await home.load();
-    await buildHomePage(pageContext, loadedHome, showRecipe);
+    await buildHomePage(pageContext, loadedHome, showRecipe, newRecipe);
 
     console.log("Flushing changes...");
     await model.flushChanges();

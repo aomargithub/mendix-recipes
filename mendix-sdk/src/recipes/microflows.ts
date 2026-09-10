@@ -11,13 +11,13 @@ import {
     IModel,
     datatypes,
     domainmodels,
+    exportmappings,
     importmappings,
     microflows,
     pages,
     projects,
     security,
-    services,
-    texts
+    services
 } from "mendixmodelsdk";
 import { listType, objectType, text } from "./builders";
 import { RecipeDomain } from "./domain";
@@ -157,6 +157,42 @@ function restGet(
     return action;
 }
 
+/** A POST whose body is produced by `mapping` from the object in `argumentVariableName`. */
+function restPost(
+    model: IModel,
+    urlVariable: string,
+    mapping: exportmappings.IExportMapping,
+    argumentVariableName: string
+): microflows.RestCallAction {
+    const templateArgument = microflows.TemplateArgument.create(model);
+    templateArgument.expression = `$${urlVariable}`;
+    const locationTemplate = microflows.StringTemplate.create(model);
+    locationTemplate.text = "{1}";
+    locationTemplate.arguments.push(templateArgument);
+
+    const httpConfiguration = microflows.HttpConfiguration.create(model);
+    httpConfiguration.overrideLocation = true;
+    httpConfiguration.customLocationTemplate = locationTemplate;
+    httpConfiguration.newHttpMethod = services.HttpMethod.Post;
+    const contentType = microflows.HttpHeaderEntry.create(model);
+    contentType.key = "Content-Type";
+    contentType.value = "'application/json'";
+    httpConfiguration.headerEntries.push(contentType);
+
+    const requestHandling = microflows.MappingRequestHandling.create(model);
+    requestHandling.mapping = mapping;
+    requestHandling.mappingArgumentVariableName = argumentVariableName;
+    requestHandling.contentType = microflows.ContentType.Json;
+
+    const action = microflows.RestCallAction.create(model);
+    action.httpConfiguration = httpConfiguration;
+    action.requestHandling = requestHandling;
+    action.requestHandlingType = microflows.RequestHandlingType.Mapping;
+    // The API answers 201 with an empty body and a Location header, so there is nothing to import.
+    action.resultHandlingType = microflows.ResultHandlingType.None;
+    return action;
+}
+
 function setAttribute(
     model: IModel,
     attribute: domainmodels.IAttribute,
@@ -166,6 +202,34 @@ function setAttribute(
     change.attribute = attribute;
     change.type = microflows.ChangeActionItemType.Set;
     change.value = expression;
+    return change;
+}
+
+function changeAssociation(
+    model: IModel,
+    association: domainmodels.IAssociationBase,
+    type: microflows.ChangeActionItemType,
+    expression: string
+): microflows.MemberChange {
+    const change = microflows.MemberChange.create(model);
+    change.association = association;
+    change.type = type;
+    change.value = expression;
+    return change;
+}
+
+/** Nothing here is committed, so a change action only ever exists to refresh the client. */
+function changeObject(
+    model: IModel,
+    variableName: string,
+    items: microflows.MemberChange[],
+    refreshInClient: boolean
+): microflows.ChangeObjectAction {
+    const change = microflows.ChangeObjectAction.create(model);
+    change.changeVariableName = variableName;
+    change.refreshInClient = refreshInClient;
+    change.commit = microflows.CommitEnum.No;
+    items.forEach(item => change.items.push(item));
     return change;
 }
 
@@ -188,6 +252,19 @@ export interface RecipeMicroflows {
     dsRecipeCategoriesParameter: microflows.MicroflowParameterObject;
     actSelectCategory: microflows.Microflow;
     actShowAllRecipes: microflows.Microflow;
+    dsNewRecipeSteps: microflows.Microflow;
+    dsNewRecipeStepsParameter: microflows.MicroflowParameterObject;
+    dsNewRecipeIngredients: microflows.Microflow;
+    dsNewRecipeIngredientsParameter: microflows.MicroflowParameterObject;
+    dsNewRecipeCategories: microflows.Microflow;
+    dsNewRecipeCategoriesParameter: microflows.MicroflowParameterObject;
+    actAddStep: microflows.Microflow;
+    actAddIngredient: microflows.Microflow;
+    actAddCategory: microflows.Microflow;
+    actRemoveStep: microflows.Microflow;
+    actRemoveIngredient: microflows.Microflow;
+    actRemoveCategory: microflows.Microflow;
+    actSaveRecipe: microflows.Microflow;
 }
 
 export interface RecipeMicroflowContext {
@@ -260,14 +337,15 @@ export function buildMicroflows(context: RecipeMicroflowContext): RecipeMicroflo
 
     const retrieveOverAssociation = (
         name: string,
+        startEntity: domainmodels.Entity,
         association: domainmodels.IAssociationBase,
         childEntity: domainmodels.Entity,
         outputVariableName: string
     ): { microflow: microflows.Microflow; parameter: microflows.MicroflowParameterObject } => {
         const builder = new LinearMicroflowBuilder(model, languages);
-        const parameter = builder.parameter("RecipeDetail", objectType(model, domain.recipeDetail));
+        const parameter = builder.parameter(startEntity.name, objectType(model, startEntity));
         const source = microflows.AssociationRetrieveSource.create(model);
-        source.startVariableName = "RecipeDetail";
+        source.startVariableName = startEntity.name;
         source.association = association;
         const retrieve = microflows.RetrieveAction.create(model);
         retrieve.retrieveSource = source;
@@ -283,18 +361,48 @@ export function buildMicroflows(context: RecipeMicroflowContext): RecipeMicroflo
         return { microflow, parameter };
     };
 
-    const steps = retrieveOverAssociation("DS_RecipeSteps", domain.stepToRecipe, domain.recipeStep, "RecipeSteps");
+    const steps = retrieveOverAssociation(
+        "DS_RecipeSteps",
+        domain.recipeDetail,
+        domain.stepToRecipe,
+        domain.recipeStep,
+        "RecipeSteps"
+    );
     const ingredients = retrieveOverAssociation(
         "DS_RecipeIngredients",
+        domain.recipeDetail,
         domain.ingredientToRecipe,
         domain.recipeIngredient,
         "RecipeIngredients"
     );
     const recipeCategories = retrieveOverAssociation(
         "DS_RecipeCategories",
+        domain.recipeDetail,
         domain.categoryToRecipe,
         domain.recipeCategory,
         "RecipeCategories"
+    );
+
+    const newSteps = retrieveOverAssociation(
+        "DS_NewRecipeSteps",
+        domain.newRecipe,
+        domain.newRecipeToSteps,
+        domain.newRecipeStep,
+        "NewRecipeSteps"
+    );
+    const newIngredients = retrieveOverAssociation(
+        "DS_NewRecipeIngredients",
+        domain.newRecipe,
+        domain.newRecipeToIngredients,
+        domain.newRecipeIngredient,
+        "NewRecipeIngredients"
+    );
+    const newCategories = retrieveOverAssociation(
+        "DS_NewRecipeCategories",
+        domain.newRecipe,
+        domain.newRecipeToCategories,
+        domain.newRecipeCategory,
+        "NewRecipeCategories"
     );
 
     const changeSelectedCategory = (name: string, withCategoryParameter: boolean, expression: string) => {
@@ -314,6 +422,85 @@ export function buildMicroflows(context: RecipeMicroflowContext): RecipeMicroflo
     const actSelectCategory = changeSelectedCategory("ACT_SelectCategory", true, "$Category/Name");
     const actShowAllRecipes = changeSelectedCategory("ACT_ShowAllRecipes", false, "''");
 
+    // Adding and removing a row on the add-recipe form. Both end by refreshing the NewRecipe the
+    // form sits on, which is what re-runs the DS_NewRecipe* data sources listing the rows.
+    const addRow = (
+        name: string,
+        childEntity: domainmodels.Entity,
+        association: domainmodels.IAssociationBase,
+        initialValues: microflows.MemberChange[] = []
+    ): microflows.Microflow => {
+        const builder = new LinearMicroflowBuilder(model, languages);
+        builder.parameter("NewRecipe", objectType(model, domain.newRecipe));
+        const create = microflows.CreateObjectAction.create(model);
+        create.entity = childEntity;
+        create.outputVariableName = childEntity.name;
+        initialValues.forEach(item => create.items.push(item));
+        builder.activity(create, 200);
+        builder.activity(
+            changeObject(
+                model,
+                "NewRecipe",
+                [changeAssociation(model, association, microflows.ChangeActionItemType.Add, `$${childEntity.name}`)],
+                true
+            ),
+            200
+        );
+        return builder.finish(container, name, datatypes.VoidType.create(model), "", role);
+    };
+
+    const removeRow = (
+        name: string,
+        childEntity: domainmodels.Entity,
+        association: domainmodels.IAssociationBase
+    ): microflows.Microflow => {
+        const builder = new LinearMicroflowBuilder(model, languages);
+        // Both parameters come from the page: the row from the list view, the recipe from the data
+        // view around it. The client matches them by type, so neither needs to be mapped by hand.
+        builder.parameter(childEntity.name, objectType(model, childEntity));
+        builder.parameter("NewRecipe", objectType(model, domain.newRecipe));
+        builder.activity(
+            changeObject(
+                model,
+                "NewRecipe",
+                [changeAssociation(model, association, microflows.ChangeActionItemType.Remove, `$${childEntity.name}`)],
+                true
+            ),
+            200
+        );
+        const remove = microflows.DeleteAction.create(model);
+        remove.deleteVariableName = childEntity.name;
+        builder.activity(remove, 190);
+        return builder.finish(container, name, datatypes.VoidType.create(model), "", role);
+    };
+
+    const oneUnit = setAttribute(model, attributeOf(domain.newRecipeIngredient, "Quantity"), "1");
+    const actAddStep = addRow("ACT_AddStep", domain.newRecipeStep, domain.newRecipeToSteps);
+    const actAddIngredient = addRow("ACT_AddIngredient", domain.newRecipeIngredient, domain.newRecipeToIngredients, [
+        oneUnit
+    ]);
+    const actAddCategory = addRow("ACT_AddCategory", domain.newRecipeCategory, domain.newRecipeToCategories);
+    const actRemoveStep = removeRow("ACT_RemoveStep", domain.newRecipeStep, domain.newRecipeToSteps);
+    const actRemoveIngredient = removeRow(
+        "ACT_RemoveIngredient",
+        domain.newRecipeIngredient,
+        domain.newRecipeToIngredients
+    );
+    const actRemoveCategory = removeRow("ACT_RemoveCategory", domain.newRecipeCategory, domain.newRecipeToCategories);
+
+    const actSaveRecipe = (() => {
+        const builder = new LinearMicroflowBuilder(model, languages);
+        builder.parameter("NewRecipe", objectType(model, domain.newRecipe));
+        builder.parameter("HomeContext", objectType(model, domain.homeContext));
+        builder.activity(stringVariable(model, "Url", `${baseUrl} + '/v1/recipes'`), 190);
+        builder.activity(restPost(model, "Url", integration.createRecipeMapping, "NewRecipe"), 190);
+        // The recipe list on the home page hangs off this object, so touching it picks the new
+        // recipe up; without it the form would close onto a list that has not moved.
+        builder.activity(changeObject(model, "HomeContext", [], true), 200);
+        builder.activity(microflows.CloseFormAction.create(model), 160);
+        return builder.finish(container, "ACT_SaveRecipe", datatypes.VoidType.create(model), "", role);
+    })();
+
     return {
         dsHomeContext,
         dsCategories,
@@ -326,8 +513,95 @@ export function buildMicroflows(context: RecipeMicroflowContext): RecipeMicroflo
         dsRecipeCategories: recipeCategories.microflow,
         dsRecipeCategoriesParameter: recipeCategories.parameter,
         actSelectCategory,
-        actShowAllRecipes
+        actShowAllRecipes,
+        dsNewRecipeSteps: newSteps.microflow,
+        dsNewRecipeStepsParameter: newSteps.parameter,
+        dsNewRecipeIngredients: newIngredients.microflow,
+        dsNewRecipeIngredientsParameter: newIngredients.parameter,
+        dsNewRecipeCategories: newCategories.microflow,
+        dsNewRecipeCategoriesParameter: newCategories.parameter,
+        actAddStep,
+        actAddIngredient,
+        actAddCategory,
+        actRemoveStep,
+        actRemoveIngredient,
+        actRemoveCategory,
+        actSaveRecipe
     };
+}
+
+/**
+ * Fills in a blank recipe and opens the add-recipe form with it. Like `ACT_ShowRecipe` this needs
+ * the page, so it is created after the pages are.
+ *
+ * The recipe starts with one row in each of the three lists, because the API rejects a recipe
+ * without steps, ingredients or categories, and an empty form gives no hint of that.
+ */
+export function buildNewRecipeMicroflow(
+    context: RecipeMicroflowContext,
+    formPage: pages.Page,
+    newRecipeParameter: pages.PageParameter,
+    homeContextParameter: pages.PageParameter
+): microflows.Microflow {
+    const { container, languages, domain, role } = context;
+    const model = container.model;
+    const builder = new LinearMicroflowBuilder(model, languages);
+    builder.parameter("HomeContext", objectType(model, domain.homeContext));
+
+    const create = microflows.CreateObjectAction.create(model);
+    create.entity = domain.newRecipe;
+    create.outputVariableName = "NewRecipe";
+    create.items.push(setAttribute(model, attributeOf(domain.newRecipe, "Author"), "'Unknown'"));
+    create.items.push(setAttribute(model, attributeOf(domain.newRecipe, "PostedAt"), "[%CurrentDateTime%]"));
+    create.items.push(setAttribute(model, attributeOf(domain.newRecipe, "PostedTo"), "'Mendix app'"));
+    create.items.push(setAttribute(model, attributeOf(domain.newRecipe, "PreparationTimeInMinutes"), "30"));
+    builder.activity(create, 200);
+
+    const createRow = (entity: domainmodels.Entity, initialValues: microflows.MemberChange[] = []) => {
+        const action = microflows.CreateObjectAction.create(model);
+        action.entity = entity;
+        action.outputVariableName = entity.name;
+        initialValues.forEach(item => action.items.push(item));
+        builder.activity(action, 200);
+    };
+    createRow(domain.newRecipeStep);
+    createRow(domain.newRecipeIngredient, [
+        setAttribute(model, attributeOf(domain.newRecipeIngredient, "Quantity"), "1")
+    ]);
+    createRow(domain.newRecipeCategory);
+
+    const add = microflows.ChangeActionItemType.Add;
+    builder.activity(
+        changeObject(
+            model,
+            "NewRecipe",
+            [
+                changeAssociation(model, domain.newRecipeToSteps, add, "$NewRecipeStep"),
+                changeAssociation(model, domain.newRecipeToIngredients, add, "$NewRecipeIngredient"),
+                changeAssociation(model, domain.newRecipeToCategories, add, "$NewRecipeCategory")
+            ],
+            false
+        ),
+        200
+    );
+
+    const pageSettings = pages.PageSettings.create(model);
+    pageSettings.page = formPage;
+    for (const [parameter, argument] of [
+        [newRecipeParameter, "$NewRecipe"],
+        [homeContextParameter, "$HomeContext"]
+    ] as [pages.PageParameter, string][]) {
+        const mapping = pages.PageParameterMapping.create(model);
+        mapping.parameter = parameter;
+        mapping.variable = pages.PageVariable.create(model);
+        mapping.argument = argument;
+        pageSettings.parameterMappings.push(mapping);
+    }
+    const showPage = microflows.ShowPageAction.create(model);
+    showPage.pageSettings = pageSettings;
+    builder.activity(showPage, 210);
+
+    return builder.finish(container, "ACT_NewRecipe", datatypes.VoidType.create(model), "", role);
 }
 
 /**

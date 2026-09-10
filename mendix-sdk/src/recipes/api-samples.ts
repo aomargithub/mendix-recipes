@@ -47,3 +47,25 @@ export const RECIPE_SAMPLE = {
     preparationTimeInMinutes: 30,
     categories: ["chili", "main dish"]
 };
+
+/**
+ * The body of `POST /v1/recipes` (`CreateRecipeRequestDto`). Close to `RECIPE_SAMPLE` but not the
+ * same: the request carries no `id`, and every field in it is mandatory.
+ */
+export const CREATE_RECIPE_SAMPLE = {
+    name: "30 Minute Chili",
+    description: "A quick chili that is ready in half an hour.",
+    steps: ["Brown the ground beef in a large pot."],
+    ingredients: [
+        {
+            name: "ground beef",
+            quantity: 1.5,
+            unit: "POUND"
+        }
+    ],
+    author: "Unknown",
+    postedAt: "2026-09-10T20:34:28.084Z",
+    postedTo: "Mendix app",
+    preparationTimeInMinutes: 30,
+    categories: ["chili"]
+};

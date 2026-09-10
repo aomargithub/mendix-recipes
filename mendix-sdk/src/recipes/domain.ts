@@ -6,7 +6,23 @@
  * rather than in kind: it holds no API data, only which category the user picked, which is what
  * lets the recipe list on the home page react to a click in the category list.
  */
-import { IModel, domainmodels, projects, security } from "mendixmodelsdk";
+import { IModel, domainmodels, enumerations, projects, security } from "mendixmodelsdk";
+import { moduleOf } from "../common";
+import { text } from "./builders";
+
+/** Mirrors `com.mendix.recipes.domain.MeasurementUnit`; the API rejects any other value. */
+export const MEASUREMENT_UNITS = [
+    "LITER",
+    "CUP",
+    "TABLESPOON",
+    "TEASPOON",
+    "GRAM",
+    "POUND",
+    "PIECE",
+    "CAN",
+    "PACKAGE",
+    "JAR"
+];
 
 export interface RecipeDomain {
     homeContext: domainmodels.Entity;
@@ -19,11 +35,23 @@ export interface RecipeDomain {
     stepToRecipe: domainmodels.Association;
     ingredientToRecipe: domainmodels.Association;
     categoryToRecipe: domainmodels.Association;
+    measurementUnit: enumerations.Enumeration;
+    newRecipe: domainmodels.Entity;
+    newRecipeStep: domainmodels.Entity;
+    newRecipeIngredient: domainmodels.Entity;
+    newRecipeCategory: domainmodels.Entity;
+    newRecipeToSteps: domainmodels.Association;
+    newRecipeToIngredients: domainmodels.Association;
+    newRecipeToCategories: domainmodels.Association;
 }
 
 type AttributeSpec = {
     name: string;
     type: "String" | "Integer" | "Decimal" | "DateTime";
+} | {
+    name: string;
+    type: "Enumeration";
+    enumeration: enumerations.IEnumeration;
 };
 
 function attributeType(model: IModel, spec: AttributeSpec): domainmodels.AttributeType {
@@ -40,6 +68,11 @@ function attributeType(model: IModel, spec: AttributeSpec): domainmodels.Attribu
             return domainmodels.DecimalAttributeType.create(model);
         case "DateTime":
             return domainmodels.DateTimeAttributeType.create(model);
+        case "Enumeration": {
+            const type = domainmodels.EnumerationAttributeType.create(model);
+            type.enumeration = spec.enumeration;
+            return type;
+        }
     }
 }
 
@@ -70,18 +103,44 @@ function createEntity(
 function createAssociation(
     domainModel: domainmodels.DomainModel,
     parent: domainmodels.Entity,
-    child: domainmodels.Entity
+    child: domainmodels.Entity,
+    type: domainmodels.AssociationType = domainmodels.AssociationType.Reference
 ): domainmodels.Association {
     const association = domainmodels.Association.createIn(domainModel);
-    // Mendix names an association <owner>_<target>; `parent` is the many side holding the reference.
+    // Mendix names an association <owner>_<target>; `parent` is the side holding the reference.
     association.name = `${parent.name}_${child.name}`;
     association.parent = parent;
     association.child = child;
-    association.type = domainmodels.AssociationType.Reference;
+    association.type = type;
     association.owner = domainmodels.AssociationOwner.Default;
     association.parentConnection = { x: 0, y: 15 };
     association.childConnection = { x: 100, y: 15 };
     return association;
+}
+
+/**
+ * The measurement units the API accepts. An enumeration rather than free text because an export
+ * mapping writes the enumeration value's name, so the drop-down cannot produce a unit the API
+ * would reject.
+ */
+function createMeasurementUnitEnumeration(
+    container: projects.IModule,
+    languages: string[]
+): enumerations.Enumeration {
+    // Deleted here rather than alongside the other documents, because an enumeration cannot go
+    // while an attribute still refers to it, and those attributes only go with their entities.
+    for (const existing of container.model.allEnumerations()) {
+        if (existing.name === "MeasurementUnit" && moduleOf(existing) === container) (existing as any).delete();
+    }
+
+    const enumeration = enumerations.Enumeration.createIn(container);
+    enumeration.name = "MeasurementUnit";
+    for (const unit of MEASUREMENT_UNITS) {
+        const value = enumerations.EnumerationValue.createIn(enumeration);
+        value.name = unit;
+        value.caption = text(container.model, languages, unit.charAt(0) + unit.slice(1).toLowerCase());
+    }
+    return enumeration;
 }
 
 /**
@@ -128,20 +187,29 @@ function removePreviousRun(domainModel: domainmodels.DomainModel, entityNames: s
     }
 }
 
+/** Every entity this script owns, in the order the build log lists them. */
+export const GENERATED_ENTITIES = [
+    "HomeContext",
+    "Category",
+    "RecipeSummary",
+    "RecipeDetail",
+    "RecipeStep",
+    "RecipeIngredient",
+    "RecipeCategory",
+    "NewRecipe",
+    "NewRecipeStep",
+    "NewRecipeIngredient",
+    "NewRecipeCategory"
+];
+
 export async function buildDomainModel(
     module: projects.IModule,
-    role: security.IModuleRole
+    role: security.IModuleRole,
+    languages: string[]
 ): Promise<RecipeDomain> {
     const domainModel = await module.domainModel.load();
-    removePreviousRun(domainModel, [
-        "HomeContext",
-        "Category",
-        "RecipeSummary",
-        "RecipeDetail",
-        "RecipeStep",
-        "RecipeIngredient",
-        "RecipeCategory"
-    ]);
+    removePreviousRun(domainModel, GENERATED_ENTITIES);
+    const measurementUnit = createMeasurementUnitEnumeration(module, languages);
 
     const homeContext = createEntity(domainModel, "HomeContext", { x: 60, y: 60 }, [
         { name: "SelectedCategory", type: "String" }
@@ -174,10 +242,46 @@ export async function buildDomainModel(
         { name: "Name", type: "String" }
     ]);
 
+    // What the add-recipe form fills in, shaped like `CreateRecipeRequestDto`. Kept apart from the
+    // entities above: those mirror what the API returns, which is not what it accepts.
+    const newRecipe = createEntity(domainModel, "NewRecipe", { x: 1060, y: 60 }, [
+        { name: "Name", type: "String" },
+        { name: "Description", type: "String" },
+        { name: "Author", type: "String" },
+        { name: "PostedAt", type: "DateTime" },
+        { name: "PostedTo", type: "String" },
+        { name: "PreparationTimeInMinutes", type: "Integer" }
+    ]);
+    const newRecipeStep = createEntity(domainModel, "NewRecipeStep", { x: 1420, y: 60 }, [
+        { name: "Description", type: "String" }
+    ]);
+    const newRecipeIngredient = createEntity(domainModel, "NewRecipeIngredient", { x: 1420, y: 200 }, [
+        { name: "Name", type: "String" },
+        { name: "Quantity", type: "Decimal" },
+        { name: "Unit", type: "Enumeration", enumeration: measurementUnit }
+    ]);
+    const newRecipeCategory = createEntity(domainModel, "NewRecipeCategory", { x: 1420, y: 380 }, [
+        { name: "Name", type: "String" }
+    ]);
+
     const stepToRecipe = createAssociation(domainModel, recipeStep, recipeDetail);
     const ingredientToRecipe = createAssociation(domainModel, recipeIngredient, recipeDetail);
     const categoryToRecipe = createAssociation(domainModel, recipeCategory, recipeDetail);
-    const associations = [stepToRecipe, ingredientToRecipe, categoryToRecipe];
+    // Owned by NewRecipe and set-valued, unlike the three above: the form adds and removes rows
+    // from the recipe it is editing, and the export mapping walks the same way round.
+    const referenceSet = domainmodels.AssociationType.ReferenceSet;
+    const newRecipeToSteps = createAssociation(domainModel, newRecipe, newRecipeStep, referenceSet);
+    const newRecipeToIngredients = createAssociation(domainModel, newRecipe, newRecipeIngredient, referenceSet);
+    const newRecipeToCategories = createAssociation(domainModel, newRecipe, newRecipeCategory, referenceSet);
+
+    const associations = [
+        stepToRecipe,
+        ingredientToRecipe,
+        categoryToRecipe,
+        newRecipeToSteps,
+        newRecipeToIngredients,
+        newRecipeToCategories
+    ];
 
     for (const entity of [
         homeContext,
@@ -186,7 +290,11 @@ export async function buildDomainModel(
         recipeDetail,
         recipeStep,
         recipeIngredient,
-        recipeCategory
+        recipeCategory,
+        newRecipe,
+        newRecipeStep,
+        newRecipeIngredient,
+        newRecipeCategory
     ]) {
         grantReadAccess(entity, associations, role);
     }
@@ -201,6 +309,14 @@ export async function buildDomainModel(
         recipeCategory,
         stepToRecipe,
         ingredientToRecipe,
-        categoryToRecipe
+        categoryToRecipe,
+        measurementUnit,
+        newRecipe,
+        newRecipeStep,
+        newRecipeIngredient,
+        newRecipeCategory,
+        newRecipeToSteps,
+        newRecipeToIngredients,
+        newRecipeToCategories
     };
 }
