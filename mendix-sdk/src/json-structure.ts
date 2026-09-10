@@ -433,7 +433,7 @@ function readPrimitive(
 
 /** Formats a snippet the way Studio Pro's "Format JSON" would. */
 export function beautify(json: unknown): string {
-    return JSON.stringify(json, null, 2).replace(/\n/g, "\r\n");
+    return JSON.stringify(json, null, 4).replace(/\n/g, "\r\n");
 }
 
 export function walk(node: JsonNode, visit: (node: JsonNode) => void) {
