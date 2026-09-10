@@ -74,6 +74,14 @@ export function dynamicText(
     return widget;
 }
 
+/** A widget's CSS classes live on its appearance; the `class` property itself is long gone. */
+export function withClass<T extends pages.Widget>(widget: T, cssClass: string): T {
+    const appearance = pages.Appearance.create(widget.model);
+    appearance.class = cssClass;
+    widget.appearance = appearance;
+    return widget;
+}
+
 export function column(model: IModel, weight: number, ...widgets: pages.Widget[]): pages.LayoutGridColumn {
     const result = pages.LayoutGridColumn.create(model);
     result.weight = weight;
@@ -97,7 +105,7 @@ export function layoutGrid(model: IModel, ...rows: pages.LayoutGridRow[]): pages
 export function container(model: IModel, name: string, cssClass: string, ...widgets: pages.Widget[]): pages.DivContainer {
     const result = pages.DivContainer.create(model);
     result.name = name;
-    result.class = cssClass;
+    withClass(result, cssClass);
     widgets.forEach(widget => result.widgets.push(widget));
     return result;
 }
@@ -112,13 +120,20 @@ export function microflowClientAction(model: IModel, microflow: microflows.IMicr
 }
 
 /**
+ * References that can only be made once both ends live in the same model unit, so they are
+ * collected while the widget tree is assembled and applied after it is attached to its page.
+ */
+export type DeferredBindings = (() => void)[];
+
+/**
  * A microflow data source. Unlike a client action, which receives the enclosing data context
  * implicitly, a data source names its parameters and says which widget supplies each object.
  */
 export function microflowSource(
     model: IModel,
     microflow: microflows.IMicroflow,
-    parameterWidgets: { parameterName: string; widget: pages.EntityWidget }[] = []
+    parameterWidgets: { parameterName: string; widget: pages.EntityWidget }[] = [],
+    deferred?: DeferredBindings
 ): pages.MicroflowSource {
     const settingsElement = pages.MicroflowSettings.create(model);
     settingsElement.microflow = microflow;
@@ -128,8 +143,15 @@ export function microflowSource(
         // `IMicroflowParameter`, which the parameter box in a microflow is not, so the reference
         // is written the way the Model SDK's own serializer writes one it cannot resolve.
         (mapping as any).__parameter.updateWithRawValue(`${microflow.qualifiedName}.${parameterName}`);
-        mapping.widget = widget;
+        // Mapping a parameter straight onto a widget was dropped in Mendix 8.4; a page variable
+        // now stands between the two, and it references the widget by its name on the page.
+        const variable = pages.PageVariable.create(model);
+        mapping.variable = variable;
         settingsElement.parameterMappings.push(mapping);
+        if (!deferred) throw new Error("Mapping a data source parameter onto a widget needs a deferred binding list.");
+        deferred.push(() => {
+            variable.widget = widget;
+        });
     }
     const source = pages.MicroflowSource.create(model);
     source.microflowSettings = settingsElement;

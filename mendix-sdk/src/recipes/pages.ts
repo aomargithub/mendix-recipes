@@ -12,6 +12,7 @@
  */
 import { IModel, domainmodels, microflows, pages, projects, security } from "mendixmodelsdk";
 import {
+    DeferredBindings,
     TemplateContext,
     clientTemplate,
     column,
@@ -22,12 +23,14 @@ import {
     microflowSource,
     objectType,
     row,
-    text
+    text,
+    withClass
 } from "./builders";
 import { RecipeDomain } from "./domain";
 import { RecipeMicroflows } from "./microflows";
 
 const LAYOUT = "Atlas_Core.Atlas_TopBar";
+const LAYOUT_CONTENT_PLACEHOLDER = "Main";
 
 function attributeOf(entity: domainmodels.Entity, name: string): domainmodels.IAttribute {
     const attribute = entity.attributes.find(candidate => candidate.name === name);
@@ -35,19 +38,19 @@ function attributeOf(entity: domainmodels.Entity, name: string): domainmodels.IA
     return attribute;
 }
 
-/** The placeholder a page drops its content into. */
-async function contentParameter(model: IModel): Promise<{ layout: pages.ILayout; parameter: pages.ILayoutParameter }> {
-    const layout = model.allLayouts().find(candidate => candidate.qualifiedName === LAYOUT);
+/**
+ * Drops `content` into the layout's main placeholder. The placeholder is addressed by name
+ * rather than by element: layout parameters are not exposed as a collection on `Layout`, so
+ * the raw by-name reference is the only handle on them, which is what Studio Pro writes too.
+ */
+function layoutCall(model: IModel, content: pages.Widget): pages.LayoutCall {
+    const layout = model.findLayoutByQualifiedName(LAYOUT);
     if (!layout) throw new Error(`Layout ${LAYOUT} not found.`);
-    const loaded = await layout.load();
-    if (!loaded.mainPlaceholder) throw new Error(`Layout ${LAYOUT} has no main placeholder.`);
-    return { layout, parameter: loaded.mainPlaceholder };
-}
 
-function layoutCall(model: IModel, layout: pages.ILayout, parameter: pages.ILayoutParameter, content: pages.Widget) {
     const argument = pages.LayoutCallArgument.create(model);
-    argument.parameter = parameter;
+    (argument as any).__parameter.updateWithRawValue(`${LAYOUT}.${LAYOUT_CONTENT_PLACEHOLDER}`);
     argument.widgets.push(content);
+
     const call = pages.LayoutCall.create(model);
     call.layout = layout;
     call.arguments.push(argument);
@@ -58,9 +61,8 @@ function layoutCall(model: IModel, layout: pages.ILayout, parameter: pages.ILayo
 function readOnlyDataView(model: IModel, name: string, cssClass: string): pages.DataView {
     const dataView = pages.DataView.create(model);
     dataView.name = name;
-    dataView.class = cssClass;
+    withClass(dataView, cssClass);
     dataView.editability = pages.EditableEnum.Never;
-    dataView.showControlBar = false;
     dataView.showFooter = false;
     return dataView;
 }
@@ -68,7 +70,7 @@ function readOnlyDataView(model: IModel, name: string, cssClass: string): pages.
 function listView(model: IModel, name: string, cssClass: string): pages.ListView {
     const list = pages.ListView.create(model);
     list.name = name;
-    list.class = cssClass;
+    withClass(list, cssClass);
     list.editable = false;
     return list;
 }
@@ -93,6 +95,7 @@ export async function buildHomePage(
 ): Promise<void> {
     const { model, languages, domain, flows } = context;
     const templates: TemplateContext = { model, languages };
+    const deferred: DeferredBindings = [];
 
     const homeDataView = readOnlyDataView(model, "homeContextDataView", "recipes-home");
     homeDataView.dataSource = microflowSource(model, flows.dsHomeContext);
@@ -127,9 +130,12 @@ export async function buildHomePage(
 
     // Right: the recipes, filtered by whatever category sits on the HomeContext.
     const recipeList = listView(model, "recipeList", "recipes-recipe-list");
-    recipeList.dataSource = microflowSource(model, flows.dsRecipes, [
-        { parameterName: flows.dsRecipesHomeContextParameter.name, widget: homeDataView }
-    ]);
+    recipeList.dataSource = microflowSource(
+        model,
+        flows.dsRecipes,
+        [{ parameterName: flows.dsRecipesHomeContextParameter.name, widget: homeDataView }],
+        deferred
+    );
     recipeList.clickAction = microflowClientAction(model, showRecipe);
     recipeList.widgets.push(
         dynamicText(templates, "recipeName", "{1}", [attributeOf(domain.recipeSummary, "Name")], pages.TextRenderMode.H3),
@@ -169,8 +175,8 @@ export async function buildHomePage(
     );
     homeDataView.widgets.push(grid);
 
-    const { layout, parameter } = await contentParameter(model);
-    home.layoutCall = layoutCall(model, layout, parameter, homeDataView);
+    home.layoutCall = layoutCall(model, homeDataView);
+    deferred.forEach(bind => bind());
 }
 
 /** Story 5. */
@@ -179,6 +185,7 @@ export async function buildDetailPage(
 ): Promise<{ page: pages.Page; parameter: pages.PageParameter }> {
     const { model, module, languages, domain, flows, role } = context;
     const templates: TemplateContext = { model, languages };
+    const deferred: DeferredBindings = [];
 
     const page = pages.Page.createIn(module);
     page.name = "Recipe_Detail";
@@ -191,7 +198,9 @@ export async function buildDetailPage(
     pageParameter.parameterType = objectType(model, domain.recipeDetail);
 
     const pageVariable = pages.PageVariable.create(model);
-    pageVariable.pageParameter = pageParameter;
+    deferred.push(() => {
+        pageVariable.pageParameter = pageParameter;
+    });
     const source = pages.DataViewSource.create(model);
     const entityRef = domainmodels.DirectEntityRef.create(model);
     entityRef.entity = domain.recipeDetail;
@@ -208,7 +217,12 @@ export async function buildDetailPage(
         widgets: pages.Widget[]
     ): pages.ListView => {
         const list = listView(model, name, "recipe-detail-list");
-        list.dataSource = microflowSource(model, flow, [{ parameterName: parameter.name, widget: dataView }]);
+        list.dataSource = microflowSource(
+            model,
+            flow,
+            [{ parameterName: parameter.name, widget: dataView }],
+            deferred
+        );
         widgets.forEach(widget => list.widgets.push(widget));
         return list;
     };
@@ -308,8 +322,8 @@ export async function buildDetailPage(
     );
     dataView.widgets.push(grid);
 
-    const { layout, parameter: layoutParameter } = await contentParameter(model);
-    page.layoutCall = layoutCall(model, layout, layoutParameter, dataView);
+    page.layoutCall = layoutCall(model, dataView);
+    deferred.forEach(bind => bind());
 
     return { page, parameter: pageParameter };
 }
