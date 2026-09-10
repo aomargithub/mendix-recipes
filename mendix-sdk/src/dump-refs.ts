@@ -15,7 +15,10 @@ const WANTED = [
     "FeedbackModule.SUB_Feedback_SendToServer",
     "FeedbackModule.SUB_Feedback_PostToAppInsights",
     "FeedbackModule.LocalStorageKey",
-    "Atlas_Core.DS_Account_CurrentUser"
+    "Atlas_Core.DS_Account_CurrentUser",
+    // Shows a page that declares a page parameter, i.e. how ShowPageAction hands over an object.
+    "Administration.ShowPasswordForm",
+    "Administration.ManageMyAccount"
 ];
 
 const OUT_DIR = path.join(__dirname, "..", "out", "90-reference");
