@@ -1,0 +1,22 @@
+{
+  "name": "mendix-recipes-sdk",
+  "version": "1.0.0",
+  "description": "Mendix Platform SDK scripts that build the Recipes web app model (assignment stories 4 and 5).",
+  "scripts": {
+    "inspect": "ts-node src/inspect.ts",
+    "branches": "ts-node src/branches.ts",
+    "dump-refs": "ts-node src/dump-refs.ts",
+    "build": "ts-node src/build-recipes-app.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^22.20.2",
+    "mendixmodelsdk": "^4.115.0",
+    "mendixplatformsdk": "^5.2.0",
+    "ts-node": "^10.9.2",
+    "typescript": "5.6.3"
+  },
+  "private": true
+}
