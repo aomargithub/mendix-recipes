@@ -113,6 +113,31 @@ class RecipesApiIntegrationTests {
     }
 
     @Test
+    void lowerCaseMeasurementUnitIsAccepted() throws Exception {
+        MvcResult result = mockMvc.perform(post("/v1/recipes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Lower Case Soup",
+                                  "description": "Units typed by a human",
+                                  "steps": ["Boil"],
+                                  "ingredients": [{"name": "water", "quantity": 1, "unit": "cup"}],
+                                  "author": "Chef",
+                                  "postedAt": 1757000000000,
+                                  "postedTo": "website",
+                                  "preparationTimeInMinutes": 10,
+                                  "categories": ["italian"]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        mockMvc.perform(get(result.getResponse().getHeader("Location")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ingredients[0].unit").value("CUP"));
+    }
+
+    @Test
     void blankRecipeNameIsRejected() throws Exception {
         mockMvc.perform(post("/v1/recipes")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -43,6 +43,17 @@ class CreateRecipeRequestDtoTests {
     }
 
     @Test
+    void unitIsAcceptedRegardlessOfCaseAndPadding() {
+        CreateRecipeRequestDto request = new CreateRecipeRequestDto(
+                "Pasta", DESCRIPTION, List.of("Step one"),
+                Set.of(new IngredientDto("spaghetti", 200, " gram ")),
+                AUTHOR, new Date(), POSTED_TO, 15, Set.of("italian"));
+
+        assertEquals(Set.of(new Ingredient("spaghetti", 200, MeasurementUnit.GRAM)),
+                request.toDomain().ingredients());
+    }
+
+    @Test
     void unknownUnitIsRejectedWithSupportedUnits() {
         CreateRecipeRequestDto request = new CreateRecipeRequestDto(
                 "Pasta", DESCRIPTION, List.of("Step one"),
