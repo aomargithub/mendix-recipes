@@ -7,7 +7,9 @@ import com.mendix.recipes.domain.UnknownMeasurementUnitException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -38,6 +40,17 @@ class CreateRecipeRequestDtoTests {
         assertEquals(POSTED_TO, recipe.postedTo());
         assertEquals(Duration.ofMinutes(15), recipe.preparationTime());
         assertEquals(Set.of("italian"), recipe.categories());
+    }
+
+    @Test
+    void unitIsAcceptedRegardlessOfCaseAndPadding() {
+        CreateRecipeRequestDto request = new CreateRecipeRequestDto(
+                "Pasta", DESCRIPTION, List.of("Step one"),
+                Set.of(new IngredientDto("spaghetti", 200, " gram ")),
+                AUTHOR, new Date(), POSTED_TO, 15, Set.of("italian"));
+
+        assertEquals(Set.of(new Ingredient("spaghetti", 200, MeasurementUnit.GRAM)),
+                request.toDomain().ingredients());
     }
 
     @Test
@@ -80,6 +93,34 @@ class CreateRecipeRequestDtoTests {
                         Set.of(new IngredientDto("spaghetti", 200, "GRAM")),
                         AUTHOR, new Date(), POSTED_TO, 0, Set.of("italian")));
         assertEquals("Recipe preparationTime must be greater than zero", ex.getMessage());
+    }
+
+    @Test
+    void nullIngredientIsRejected() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> new CreateRecipeRequestDto("Pasta", DESCRIPTION, List.of("Step one"),
+                        new HashSet<>(Collections.singletonList(null)),
+                        AUTHOR, new Date(), POSTED_TO, 15, Set.of("italian")));
+        assertEquals("Recipe must have at least one ingredient", ex.getMessage());
+    }
+
+    @Test
+    void nullCategoryIsRejected() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> new CreateRecipeRequestDto("Pasta", DESCRIPTION, List.of("Step one"),
+                        Set.of(new IngredientDto("spaghetti", 200, "GRAM")),
+                        AUTHOR, new Date(), POSTED_TO, 15,
+                        new HashSet<>(Collections.singletonList(null))));
+        assertEquals("Recipe must have at least one non-blank category", ex.getMessage());
+    }
+
+    @Test
+    void blankCategoryIsRejected() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> new CreateRecipeRequestDto("Pasta", DESCRIPTION, List.of("Step one"),
+                        Set.of(new IngredientDto("spaghetti", 200, "GRAM")),
+                        AUTHOR, new Date(), POSTED_TO, 15, Set.of("  ")));
+        assertEquals("Recipe must have at least one non-blank category", ex.getMessage());
     }
 
     @Test

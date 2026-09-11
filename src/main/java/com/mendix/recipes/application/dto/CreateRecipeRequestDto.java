@@ -5,6 +5,7 @@ import com.mendix.recipes.domain.Recipe;
 import java.time.Duration;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -34,10 +35,11 @@ public record CreateRecipeRequestDto (
             throw new IllegalArgumentException("Recipe author must not be blank");
         if (steps == null || steps.isEmpty() || steps.stream().anyMatch(s -> s == null || s.isBlank()))
             throw new IllegalArgumentException("Recipe must have at least one non-blank step");
-        if (ingredients == null || ingredients.isEmpty())
+        if (ingredients == null || ingredients.isEmpty() || ingredients.stream().anyMatch(Objects::isNull))
             throw new IllegalArgumentException("Recipe must have at least one ingredient");
-        if (categories == null || categories.isEmpty())
-            throw new IllegalArgumentException("Recipe must have at least one category");
+        if (categories == null || categories.isEmpty()
+                || categories.stream().anyMatch(c -> c == null || c.isBlank()))
+            throw new IllegalArgumentException("Recipe must have at least one non-blank category");
     }
 
     public Recipe toDomain() {

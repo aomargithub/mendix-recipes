@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -129,7 +130,40 @@ class RecipeTests {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> new Recipe(UUID.randomUUID(), "Pasta", DESCRIPTION, STEPS, INGREDIENTS,
                         AUTHOR, new Date(), POSTED_TO, PREPARATION_TIME, Set.of()));
-        assertEquals("Recipe must have at least one category", ex.getMessage());
+        assertEquals("Recipe must have at least one non-blank category", ex.getMessage());
+    }
+
+    @Test
+    void nullIngredientIsRejected() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> new Recipe(UUID.randomUUID(), "Pasta", DESCRIPTION, STEPS,
+                        new HashSet<>(Collections.singletonList(null)),
+                        AUTHOR, new Date(), POSTED_TO, PREPARATION_TIME, CATEGORIES));
+        assertEquals("Recipe must have at least one ingredient", ex.getMessage());
+    }
+
+    @Test
+    void nullCategoryIsRejected() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> new Recipe(UUID.randomUUID(), "Pasta", DESCRIPTION, STEPS, INGREDIENTS,
+                        AUTHOR, new Date(), POSTED_TO, PREPARATION_TIME,
+                        new HashSet<>(Collections.singletonList(null))));
+        assertEquals("Recipe must have at least one non-blank category", ex.getMessage());
+    }
+
+    @Test
+    void blankCategoryIsRejected() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> new Recipe(UUID.randomUUID(), "Pasta", DESCRIPTION, STEPS, INGREDIENTS,
+                        AUTHOR, new Date(), POSTED_TO, PREPARATION_TIME, Set.of("  ")));
+        assertEquals("Recipe must have at least one non-blank category", ex.getMessage());
+    }
+
+    @Test
+    void categoriesAreTrimmed() {
+        Recipe recipe = Recipe.of("Pasta", DESCRIPTION, STEPS, INGREDIENTS, AUTHOR, new Date(),
+                POSTED_TO, PREPARATION_TIME, Set.of("  Italian  "));
+        assertEquals(Set.of("italian"), recipe.categories());
     }
 
     @Test

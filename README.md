@@ -52,7 +52,7 @@ curl -X POST http://localhost:8080/mendix-recipes/v1/recipes \
       }'
 ```
 
-Supported measurement units: `LITER`, `CUP`, `TABLESPOON`, `TEASPOON`, `GRAM`, `POUND`, `PIECE`, `CAN`, `PACKAGE`, `JAR`.
+Supported measurement units: `LITER`, `CUP`, `TABLESPOON`, `TEASPOON`, `GRAM`, `POUND`, `PIECE`, `CAN`, `PACKAGE`, `JAR`. Unit names are matched case-insensitively, so `cup` and `CUP` are both accepted.
 
 ## How to run the tests
 

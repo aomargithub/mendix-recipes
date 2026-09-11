@@ -113,6 +113,31 @@ class RecipesApiIntegrationTests {
     }
 
     @Test
+    void lowerCaseMeasurementUnitIsAccepted() throws Exception {
+        MvcResult result = mockMvc.perform(post("/v1/recipes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Lower Case Soup",
+                                  "description": "Units typed by a human",
+                                  "steps": ["Boil"],
+                                  "ingredients": [{"name": "water", "quantity": 1, "unit": "cup"}],
+                                  "author": "Chef",
+                                  "postedAt": 1757000000000,
+                                  "postedTo": "website",
+                                  "preparationTimeInMinutes": 10,
+                                  "categories": ["italian"]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        mockMvc.perform(get(result.getResponse().getHeader("Location")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ingredients[0].unit").value("CUP"));
+    }
+
+    @Test
     void blankRecipeNameIsRejected() throws Exception {
         mockMvc.perform(post("/v1/recipes")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -132,6 +157,43 @@ class RecipesApiIntegrationTests {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Invalid input"))
                 .andExpect(jsonPath("$.detail").value("Recipe name must not be blank"));
+    }
+
+    @Test
+    void emptyListEntriesAreRejectedInsteadOf500() throws Exception {
+        String body = """
+                {
+                  "name": "Empty Entries Stew",
+                  "description": "Sent by a form with an empty row",
+                  "steps": ["Single step"],
+                  "ingredients": [%s],
+                  "author": "Chef",
+                  "postedAt": 1757000000000,
+                  "postedTo": "website",
+                  "preparationTimeInMinutes": 10,
+                  "categories": [%s]
+                }
+                """;
+
+        mockMvc.perform(post("/v1/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content(body.formatted("null", "\"italian\"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Invalid input"))
+                .andExpect(jsonPath("$.detail").value("Recipe must have at least one ingredient"));
+
+        String ingredient = "{\"name\": \"flour\", \"quantity\": 500, \"unit\": \"GRAM\"}";
+        mockMvc.perform(post("/v1/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content(body.formatted(ingredient, "null")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Invalid input"))
+                .andExpect(jsonPath("$.detail")
+                        .value("Recipe must have at least one non-blank category"));
+
+        mockMvc.perform(post("/v1/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content(body.formatted(ingredient, "\"  \"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail")
+                        .value("Recipe must have at least one non-blank category"));
     }
 
     @Test

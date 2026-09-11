@@ -4,6 +4,8 @@ import com.mendix.recipes.domain.Ingredient;
 import com.mendix.recipes.domain.MeasurementUnit;
 import com.mendix.recipes.domain.UnknownMeasurementUnitException;
 
+import java.util.Locale;
+
 public record IngredientDto (
         String name,
         double quantity,
@@ -19,7 +21,8 @@ public record IngredientDto (
     }
     public Ingredient toDomain() {
         try {
-            MeasurementUnit measurementUnit = MeasurementUnit.valueOf(unit);
+            MeasurementUnit measurementUnit =
+                    MeasurementUnit.valueOf(unit.trim().toUpperCase(Locale.ROOT));
             return new Ingredient(name, quantity, measurementUnit);
         } catch (IllegalArgumentException e) {
             throw new UnknownMeasurementUnitException(unit, MeasurementUnit.values());

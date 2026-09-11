@@ -3,6 +3,7 @@ package com.mendix.recipes.domain;
 import java.time.Duration;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -36,16 +37,18 @@ public record Recipe(
             throw new IllegalArgumentException("Recipe author must not be blank");
         if (steps == null || steps.isEmpty() || steps.stream().anyMatch(s -> s == null || s.isBlank()))
             throw new IllegalArgumentException("Recipe must have at least one non-blank step");
-        if (ingredients == null || ingredients.isEmpty())
+        if (ingredients == null || ingredients.isEmpty() || ingredients.stream().anyMatch(Objects::isNull))
             throw new IllegalArgumentException("Recipe must have at least one ingredient");
-        if (categories == null || categories.isEmpty())
-            throw new IllegalArgumentException("Recipe must have at least one category");
+        if (categories == null || categories.isEmpty()
+                || categories.stream().anyMatch(c -> c == null || c.isBlank()))
+            throw new IllegalArgumentException("Recipe must have at least one non-blank category");
 
         name = name.trim();
         postedAt = new Date(postedAt.getTime()); //to escape the mutability of Date class
         steps = List.copyOf(steps);          // immutable + null-hostile
         ingredients = Set.copyOf(ingredients);
-        categories = categories.stream().map(String::toLowerCase).collect(Collectors.toUnmodifiableSet());
+        categories = categories.stream().map(c -> c.trim().toLowerCase())
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override public Date postedAt() { //to escape the mutability of Date class
