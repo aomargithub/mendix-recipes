@@ -474,12 +474,17 @@ export async function buildNewRecipePage(context: RecipePagesContext): Promise<N
             [
                 textBox(
                     templates,
+                    "ingredientNameInput",
+                    "Ingredient",
+                    attributeOf(domain.newRecipeIngredient, "Name")
+                ),
+                textBox(
+                    templates,
                     "ingredientQuantityInput",
                     "Quantity",
                     attributeOf(domain.newRecipeIngredient, "Quantity")
                 ),
-                textBox(templates, "ingredientUnitInput", "Unit", attributeOf(domain.newRecipeIngredient, "Unit")),
-                textBox(templates, "ingredientNameInput", "Ingredient", attributeOf(domain.newRecipeIngredient, "Name"))
+                textBox(templates, "ingredientUnitInput", "Unit", attributeOf(domain.newRecipeIngredient, "Unit"))
             ],
             `Units: ${MEASUREMENT_UNITS.join(", ")}`
         ),
