@@ -135,6 +135,43 @@ class RecipesApiIntegrationTests {
     }
 
     @Test
+    void emptyListEntriesAreRejectedInsteadOf500() throws Exception {
+        String body = """
+                {
+                  "name": "Empty Entries Stew",
+                  "description": "Sent by a form with an empty row",
+                  "steps": ["Single step"],
+                  "ingredients": [%s],
+                  "author": "Chef",
+                  "postedAt": 1757000000000,
+                  "postedTo": "website",
+                  "preparationTimeInMinutes": 10,
+                  "categories": [%s]
+                }
+                """;
+
+        mockMvc.perform(post("/v1/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content(body.formatted("null", "\"italian\"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Invalid input"))
+                .andExpect(jsonPath("$.detail").value("Recipe must have at least one ingredient"));
+
+        String ingredient = "{\"name\": \"flour\", \"quantity\": 500, \"unit\": \"GRAM\"}";
+        mockMvc.perform(post("/v1/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content(body.formatted(ingredient, "null")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Invalid input"))
+                .andExpect(jsonPath("$.detail")
+                        .value("Recipe must have at least one non-blank category"));
+
+        mockMvc.perform(post("/v1/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content(body.formatted(ingredient, "\"  \"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail")
+                        .value("Recipe must have at least one non-blank category"));
+    }
+
+    @Test
     void malformedJsonIsRejected() throws Exception {
         mockMvc.perform(post("/v1/recipes")
                         .contentType(MediaType.APPLICATION_JSON)
