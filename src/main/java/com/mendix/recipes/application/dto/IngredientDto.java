@@ -22,7 +22,7 @@ public record IngredientDto (
     public Ingredient toDomain() {
         try {
             MeasurementUnit measurementUnit =
-                    MeasurementUnit.valueOf(unit.trim().toUpperCase(Locale.ROOT));
+                    MeasurementUnit.valueOf(unit.trim().toUpperCase());
             return new Ingredient(name, quantity, measurementUnit);
         } catch (IllegalArgumentException e) {
             throw new UnknownMeasurementUnitException(unit, MeasurementUnit.values());
